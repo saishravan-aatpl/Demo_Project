@@ -16,6 +16,7 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 | `lock.js` | Optional PIN lock screen for this device. |
 | `drag.js` | Smooth drag-to-reorder for tasks and projects (mouse and touch). |
 | `menu.js` | The small pop-up menus behind the ⋯ buttons. |
+| `topbar.js` | The header that shrinks into a slim bar as you scroll. |
 | `sync.js` | Cloud sync: sign-in (email + password), saving, live updates, offline catch-up. |
 | `merge.js` | Combines changes made on two devices at the same time. |
 | `config.js` | The two Supabase values sync needs (both safe to publish). |
@@ -29,6 +30,9 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 | `.nojekyll` | Tells GitHub Pages to publish the files as-is. |
 
 ## Using it
+
+- **Header:** full size at the top. As you scroll it shrinks into a slim bar
+  (time, time left, View). Tap the bar to open it again; scrolling closes it.
 
 - **Edit a task:** tap or click its name; Enter saves, Escape cancels.
 - **Move a task:** on a phone, press and hold it, then drag (into any project, even a

@@ -187,7 +187,9 @@ const Drag = (() => {
   function autoScroll() {
     clearInterval(active.scrollTimer);
     const y = active.y;
-    const speed = y < EDGE ? -Math.ceil((EDGE - y) / 6) : y > window.innerHeight - EDGE ? Math.ceil((y - (window.innerHeight - EDGE)) / 6) : 0;
+    // The pinned header covers the top of the screen, so the scroll zone starts below it.
+    const top = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')) || 0) + EDGE;
+    const speed = y < top ? -Math.ceil((top - y) / 6) : y > window.innerHeight - EDGE ? Math.ceil((y - (window.innerHeight - EDGE)) / 6) : 0;
     if (!speed) return;
     active.scrollTimer = setInterval(() => {
       window.scrollBy(0, speed);
