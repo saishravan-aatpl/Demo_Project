@@ -21,9 +21,14 @@
 
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- If a PIN is set, hide the dashboard before anything is drawn on screen -->
+  <!-- If a PIN is set and the last unlock has expired, hide the dashboard before anything is drawn -->
   <script>
-    try { if (localStorage.getItem('officeDailyDashboard.pin')) document.documentElement.classList.add('locked'); } catch (e) {}
+    try {
+      if (localStorage.getItem('officeDailyDashboard.pin')) {
+        var unlock = JSON.parse(localStorage.getItem('officeDailyDashboard.unlock') || 'null');
+        if (!unlock || !(unlock.until > Date.now())) document.documentElement.classList.add('locked');
+      }
+    } catch (e) { document.documentElement.classList.add('locked'); }
   </script>
 </head>
 <body>

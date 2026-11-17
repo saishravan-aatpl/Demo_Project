@@ -29,8 +29,16 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 ## PIN lock
 
 Optional. Tap **Set PIN** (under End-of-Day Notes) to choose a 4–6 digit PIN.
-The app then asks for it when it opens and after it has been in the background
-for more than a minute. After 5 wrong tries there is a 30-second wait.
+
+How long an unlock lasts:
+
+- **During work hours** (before your *Leaving for the day* time): stays unlocked until
+  that time, even if you close and reopen the app. Changing the leaving time moves it.
+- **At the leaving time** it locks by itself.
+- **After work hours**: locks after 10 minutes without use (any tap or scroll resets it).
+- **Next day** the PIN is needed again. **Lock now** locks immediately.
+
+After 5 wrong tries there is a 30-second wait.
 
 It is a privacy screen for your own device, not encryption: it stops someone who
 picks up your unlocked phone or laptop. The PIN is stored only as a salted hash.
