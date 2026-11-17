@@ -147,6 +147,8 @@ function normalizeState(data) {
 function saveState(show = true) {
   // Don't write anything back while "Forgot PIN" is erasing this device's data.
   if (window.dashboardLock?.wiping) return false;
+  // Let cloud sync know something may have changed (it checks whether anything really did).
+  window.dashboardSync?.onLocalSave();
   if (!storageAvailable) {
     updateSaveStatus('Local autosave is blocked. Use Export Backup.', true);
     if (show) showToast('Autosave blocked');
@@ -1029,6 +1031,10 @@ els.importBtn.addEventListener('click', () => els.importFile.click());
 els.importFile.addEventListener('change', event => {
   const file = event.target.files[0];
   if (!file) return;
+  if (window.dashboardSync?.isSignedIn() && !confirm('Importing replaces your dashboard on ALL your synced devices. Continue?')) {
+    event.target.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = () => {
     try {
@@ -1053,6 +1059,28 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveState(false);
 });
 setInterval(() => saveState(false), 15000);
+
+// Small interface used by sync.js to read and replace the synced data.
+window.dashboardApp = {
+  getData() {
+    return {
+      projects: state.projects,
+      people: state.people,
+      leaveTime: state.leaveTime,
+      dayNotes: state.dayNotes
+    };
+  },
+  applyData(data) {
+    state = normalizeState({ ...state, ...structuredClone(data) });
+    saveState(false);
+    render();
+  },
+  // True while you're typing in a text box, so incoming changes wait instead of redrawing under you.
+  isEditing() {
+    const el = document.activeElement;
+    return Boolean(el && el.closest('.app') && el.matches('input[type="text"], textarea'));
+  }
+};
 
 populateLeaveTimeOptions();
 els.leaveTime.value = state.leaveTime || '17:00';

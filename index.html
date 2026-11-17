@@ -111,6 +111,19 @@
           <div class="metric"><span>Completion</span><strong id="completionRate">0%</strong></div>
         </section>
 
+        <section class="sync-panel" id="syncPanel" hidden>
+          <h2>Cloud Sync</h2>
+          <div id="syncSignedOut">
+            <p class="subtle">Sign in to keep this dashboard the same on your phone and laptop.</p>
+            <button type="button" id="syncSignInBtn">Sign in to sync</button>
+          </div>
+          <div id="syncSignedIn" hidden>
+            <div class="sync-account" id="syncEmail"></div>
+            <div class="sync-status" id="syncStatus" data-state="syncing">Syncing…</div>
+            <button class="btn-secondary btn-small" id="syncSignOut" type="button">Sign out</button>
+          </div>
+        </section>
+
         <section class="notes-panel">
           <h2>End-of-Day Notes</h2>
           <textarea id="dayNotes" placeholder="What moved? What is blocked? What should carry forward tomorrow?"></textarea>
@@ -150,7 +163,36 @@
     </form>
   </dialog>
 
+  <dialog class="pin-dialog" id="signInDialog">
+    <form id="signInEmailForm">
+      <h2>Sign in to sync</h2>
+      <p class="subtle">We'll email you a one-time code. No password needed.</p>
+      <label for="signInEmail">Email</label>
+      <input id="signInEmail" type="email" inputmode="email" autocomplete="email" required />
+      <div class="lock-error" id="signInEmailError" role="alert"></div>
+      <div class="pin-dialog-actions">
+        <button type="button" class="btn-secondary" id="signInCancel">Cancel</button>
+        <button type="submit" id="signInSend">Email me a code</button>
+      </div>
+    </form>
+    <form id="signInCodeForm" hidden>
+      <h2>Check your email</h2>
+      <p class="subtle" id="signInCodeText"></p>
+      <label for="signInCode">Code</label>
+      <input id="signInCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" />
+      <div class="lock-error" id="signInCodeError" role="alert"></div>
+      <div class="pin-dialog-actions">
+        <button type="button" class="btn-secondary" id="signInBack">Use a different email</button>
+        <button type="submit" id="signInVerify">Verify</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="vendor/supabase-js-2.117.3.js"></script>
+  <script src="merge.js"></script>
   <script src="lock.js"></script>
   <script src="app.js"></script>
+  <script src="sync.js"></script>
 </body>
 </html>

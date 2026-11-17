@@ -4,13 +4,17 @@
 // Strategy: "network first". Always try to fetch the latest version; if there is
 // no internet, fall back to the saved copy. Bump CACHE_VERSION when files change.
 
-const CACHE_VERSION = 'dashboard-v2';
+const CACHE_VERSION = 'dashboard-v3';
 const APP_FILES = [
   './',
   'index.html',
   'styles.css',
-  'app.js',
+  'config.js',
+  'vendor/supabase-js-2.117.3.js',
+  'merge.js',
   'lock.js',
+  'app.js',
+  'sync.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'icons/icon-192.png',

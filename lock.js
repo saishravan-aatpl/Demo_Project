@@ -16,7 +16,8 @@
   const PIN_KEY = 'officeDailyDashboard.pin';
   const ATTEMPTS_KEY = 'officeDailyDashboard.pinAttempts';
   // All of this app's saved data uses these prefixes (see app.js).
-  const DATA_KEY_PREFIXES = ['officeDailyDashboard.', 'officeProjectDashboard.'];
+  // 'sb-' is the cloud sign-in, so "Forgot PIN" also signs this device out of sync.
+  const DATA_KEY_PREFIXES = ['officeDailyDashboard.', 'officeProjectDashboard.', 'sb-'];
   const AUTO_LOCK_MS = 60 * 1000;
   const MAX_ATTEMPTS = 5;
   const LOCKOUT_MS = 30 * 1000;
@@ -172,7 +173,7 @@
   $('lockForgot').addEventListener('click', () => {
     const confirmed = confirm(
       'Forgot your PIN?\n\n' +
-      'This removes the PIN AND erases all dashboard data on this device. ' +
+      'This removes the PIN, erases all dashboard data on this device and signs it out of sync. ' +
       'You can restore it afterwards with Import Backup.\n\nErase and continue?'
     );
     if (!confirmed) return;
