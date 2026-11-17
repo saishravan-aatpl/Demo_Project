@@ -1,4 +1,4 @@
-# Office Daily Dashboard
+# Workstack
 
 A simple daily work tracker: projects, tasks, who owns each task, a leaving-time
 countdown, end-of-day notes, and a one-click summary to paste into chat or email.
