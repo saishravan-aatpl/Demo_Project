@@ -54,7 +54,10 @@ const els = {
   peopleResultsTitle: document.getElementById('peopleResultsTitle'),
   peopleResultsCount: document.getElementById('peopleResultsCount'),
   peopleTaskList: document.getElementById('peopleTaskList'),
-  toast: document.getElementById('toast')
+  toast: document.getElementById('toast'),
+  undoToast: document.getElementById('undoToast'),
+  undoMessage: document.getElementById('undoMessage'),
+  undoBtn: document.getElementById('undoBtn')
 };
 
 function uid() {
@@ -179,6 +182,51 @@ function updateSaveStatus(message, warning = false) {
   if (!statusEl) return;
   statusEl.textContent = message;
   statusEl.classList.toggle('warning', Boolean(warning));
+}
+
+// ---------- undo ----------
+// Before a change that's easy to regret (delete, move, import), we keep a copy of the
+// data. "Undo" puts that copy back. Up to 20 steps; Ctrl/Cmd+Z works on a laptop.
+const UNDO_LIMIT = 20;
+const UNDO_TOAST_MS = 6000;
+const undoStack = [];
+let undoTimer = null;
+
+function snapshotData() {
+  return structuredClone({ projects: state.projects, people: state.people, leaveTime: state.leaveTime, dayNotes: state.dayNotes });
+}
+
+// Run a change, remember how things were before it, and offer Undo.
+function withUndo(message, change) {
+  const before = snapshotData();
+  const result = change();
+  if (result === false) return;                 // the change was cancelled
+  undoStack.push(before);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  showUndoToast(message);
+}
+
+function undo() {
+  const before = undoStack.pop();
+  hideUndoToast();
+  if (!before) return showToast('Nothing to undo');
+  state = normalizeState({ ...state, ...before });
+  saveState(false);
+  render();
+  showToast('Undone');
+}
+
+function showUndoToast(message) {
+  els.toast.classList.remove('show');
+  els.undoMessage.textContent = message;
+  els.undoToast.classList.add('show');
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(hideUndoToast, UNDO_TOAST_MS);
+}
+
+function hideUndoToast() {
+  clearTimeout(undoTimer);
+  els.undoToast.classList.remove('show');
 }
 
 function showToast(message) {
@@ -329,22 +377,31 @@ const TASK_DRAG_IGNORE = 'input, button, textarea, select, .person-menu';
 function moveTask(taskId, fromProject, toProject, index) {
   const task = fromProject.tasks.find(t => t.id === taskId);
   if (!task) return;
-  fromProject.tasks = fromProject.tasks.filter(t => t.id !== taskId);
-  const position = index === undefined ? toProject.tasks.filter(t => !t.done).length : Math.max(0, Math.min(index, toProject.tasks.length));
-  toProject.tasks.splice(position, 0, task);
-  sortDoneTasksToBottom(toProject);
-  saveState(false);
-  render();
-  if (fromProject !== toProject) showToast(`Moved to ${toProject.name}`);
+  const message = fromProject !== toProject ? `Moved to ${toProject.name}` : 'Task moved';
+  withUndo(message, () => {
+    const oldOrder = fromProject.tasks.map(t => t.id).join();
+    fromProject.tasks = fromProject.tasks.filter(t => t.id !== taskId);
+    const position = index === undefined ? toProject.tasks.filter(t => !t.done).length : Math.max(0, Math.min(index, toProject.tasks.length));
+    toProject.tasks.splice(position, 0, task);
+    sortDoneTasksToBottom(toProject);
+    saveState(false);
+    render();
+    // Dropped back where it started: nothing to undo.
+    if (fromProject === toProject && toProject.tasks.map(t => t.id).join() === oldOrder) return false;
+  });
 }
 
 function moveProject(projectId, index) {
   const project = getProject(projectId);
   if (!project) return;
-  state.projects = state.projects.filter(p => p.id !== projectId);
-  state.projects.splice(Math.max(0, Math.min(index, state.projects.length)), 0, project);
-  saveState(false);
-  render();
+  withUndo('Project moved', () => {
+    const oldOrder = state.projects.map(p => p.id).join();
+    state.projects = state.projects.filter(p => p.id !== projectId);
+    state.projects.splice(Math.max(0, Math.min(index, state.projects.length)), 0, project);
+    saveState(false);
+    render();
+    if (state.projects.map(p => p.id).join() === oldOrder) return false;
+  });
 }
 
 // Where a dragged task would land: any project's list, including collapsed ones.
@@ -593,13 +650,11 @@ function bindProjectCardEvents(card, projectId) {
       {
         label: 'Delete project',
         danger: true,
-        onClick: () => {
-          const confirmed = confirm(`Delete project "${project.name}" and all its tasks?`);
-          if (!confirmed) return;
+        onClick: () => withUndo(`Deleted "${project.name}"`, () => {
           state.projects = state.projects.filter(p => p.id !== projectId);
-          saveState();
+          saveState(false);
           render();
-        }
+        })
       }
     ]);
   });
@@ -790,12 +845,11 @@ function bindTaskEvents(card, project) {
         {
           label: 'Delete task',
           danger: true,
-          onClick: () => {
+          onClick: () => withUndo('Task deleted', () => {
             project.tasks = project.tasks.filter(t => t.id !== taskId);
-            saveState();
+            saveState(false);
             render();
-            showToast('Task deleted');
-          }
+          })
         }
       ]);
     });
@@ -808,7 +862,15 @@ function bindTaskEditor(editor, project, task) {
   const finish = () => {
     if (finished) return;
     finished = true;
-    if (!editor.value.trim()) project.tasks = project.tasks.filter(t => t.id !== task.id);
+    if (!editor.value.trim()) {
+      task.text = original;                       // so Undo brings back the original text
+      withUndo('Task deleted', () => {
+        project.tasks = project.tasks.filter(t => t.id !== task.id);
+        saveState(false);
+        render();
+      });
+      return;
+    }
     saveState();
     render();
   };
@@ -1101,10 +1163,11 @@ els.importFile.addEventListener('change', event => {
     try {
       const imported = JSON.parse(reader.result);
       if (!Array.isArray(imported.projects)) throw new Error('Invalid backup format');
-      state = normalizeState({ ...structuredClone(defaultState), ...imported });
-      saveState();
-      render();
-      showToast('Backup imported');
+      withUndo('Backup imported', () => {
+        state = normalizeState({ ...structuredClone(defaultState), ...imported });
+        saveState(false);
+        render();
+      });
     } catch (error) {
       alert('Could not import this backup file.');
     }
@@ -1114,6 +1177,15 @@ els.importFile.addEventListener('change', event => {
 });
 
 document.addEventListener('click', () => { closeAllPersonMenus(); closePersonFilterDropdown(); });
+
+els.undoBtn.addEventListener('click', event => { event.stopPropagation(); undo(); });
+document.addEventListener('keydown', event => {
+  const typing = event.target.closest?.('input, textarea, [contenteditable="true"]');
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z' && !typing) {
+    event.preventDefault();
+    undo();
+  }
+});
 
 window.addEventListener('beforeunload', () => saveState(false));
 document.addEventListener('visibilitychange', () => {
@@ -1132,6 +1204,8 @@ window.dashboardApp = {
     };
   },
   applyData(data) {
+    undoStack.length = 0;            // undoing now would wipe out the other device's changes
+    hideUndoToast();
     state = normalizeState({ ...state, ...structuredClone(data) });
     saveState(false);
     render();

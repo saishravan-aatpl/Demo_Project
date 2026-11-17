@@ -1340,3 +1340,39 @@ body.is-dragging { -webkit-user-select: none; user-select: none; }
 .action-menu-item:disabled { color: #c0c5cd; background: transparent; cursor: default; }
 .action-menu-item.has-submenu::after { content: '›'; float: right; color: var(--muted); font-weight: 700; }
 .action-menu-item.back { color: var(--muted); font-size: 13px; padding: 8px 10px; }
+
+/* ------------------------------------------------------------------ */
+/* Undo bar                                                            */
+/* ------------------------------------------------------------------ */
+
+.undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translate(-50%, 16px);
+  z-index: 2600;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 16px;
+  border-radius: 999px;
+  background: #111827;
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.undo-toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+#undoMessage { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#undoBtn {
+  flex: none;
+  background: #fff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+}
+html.locked .undo-toast { display: none; }

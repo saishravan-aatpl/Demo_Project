@@ -35,6 +35,8 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
   collapsed one). With a mouse, just drag it. Or use **⋯ → Move to project / Move to top**.
 - **Move a project:** drag it by **☰**.
 - **Collapse or delete a project / delete a task:** the **⋯** button.
+- **Undo:** deleting, moving or importing shows an **Undo** button for a few seconds
+  (up to 20 steps back; Ctrl/Cmd+Z on a laptop).
 
 ## PIN lock
 
