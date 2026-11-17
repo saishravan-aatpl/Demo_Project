@@ -164,26 +164,27 @@
   </dialog>
 
   <dialog class="pin-dialog" id="signInDialog">
-    <form id="signInEmailForm">
-      <h2>Sign in to sync</h2>
-      <p class="subtle">We'll email you a one-time code. No password needed.</p>
-      <label for="signInEmail">Email</label>
-      <input id="signInEmail" type="email" inputmode="email" autocomplete="email" required />
-      <div class="lock-error" id="signInEmailError" role="alert"></div>
-      <div class="pin-dialog-actions">
-        <button type="button" class="btn-secondary" id="signInCancel">Cancel</button>
-        <button type="submit" id="signInSend">Email me a code</button>
+    <form id="authForm" novalidate>
+      <h2 id="authTitle">Sign in to sync</h2>
+      <p class="subtle" id="authText"></p>
+      <div id="authEmailWrap">
+        <label for="authEmail">Email</label>
+        <input id="authEmail" type="email" inputmode="email" autocomplete="username" />
       </div>
-    </form>
-    <form id="signInCodeForm" hidden>
-      <h2>Check your email</h2>
-      <p class="subtle" id="signInCodeText"></p>
-      <label for="signInCode">Code</label>
-      <input id="signInCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" />
-      <div class="lock-error" id="signInCodeError" role="alert"></div>
+      <div id="authPasswordWrap">
+        <label for="authPassword">Password</label>
+        <input id="authPassword" type="password" autocomplete="current-password" />
+      </div>
+      <div class="lock-error" id="authError" role="alert"></div>
+      <div class="auth-message" id="authMessage" role="status"></div>
       <div class="pin-dialog-actions">
-        <button type="button" class="btn-secondary" id="signInBack">Use a different email</button>
-        <button type="submit" id="signInVerify">Verify</button>
+        <button type="button" class="btn-secondary" id="authCancel">Cancel</button>
+        <button type="submit" id="authSubmit">Sign in</button>
+      </div>
+      <div class="auth-links">
+        <button type="button" class="link-btn" id="authToSignup">First time? Create your account</button>
+        <button type="button" class="link-btn" id="authToForgot">Forgot password?</button>
+        <button type="button" class="link-btn" id="authToSignin">Back to sign in</button>
       </div>
     </form>
   </dialog>

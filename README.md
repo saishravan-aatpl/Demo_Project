@@ -14,7 +14,7 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 | `styles.css` | How it looks: colours, spacing, phone layout. |
 | `app.js` | How it behaves: adding tasks, saving, summary, import/export. |
 | `lock.js` | Optional PIN lock screen for this device. |
-| `sync.js` | Cloud sync: sign-in by email code, saving, live updates, offline catch-up. |
+| `sync.js` | Cloud sync: sign-in (email + password), saving, live updates, offline catch-up. |
 | `merge.js` | Combines changes made on two devices at the same time. |
 | `config.js` | The two Supabase values sync needs (both safe to publish). |
 | `vendor/` | Supabase's official browser library (v2.117.3), kept in the repo so the app doesn't depend on another website. |
@@ -42,7 +42,7 @@ Data is always saved in the browser on each device (`localStorage`), so the app
 works offline. With **Cloud Sync** signed in, it is also stored in Supabase and kept
 the same on every device:
 
-- Sign in with a one-time code emailed to you (no password).
+- Sign in with email + password (create the account once, then sign in on each device).
 - Changes upload about a second after you make them; other open devices update live.
 - Offline changes upload when you're back online. If two devices changed things at
   the same time, both sets of changes are combined (`merge.js`).

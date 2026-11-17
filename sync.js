@@ -2,8 +2,9 @@
 // --------------------
 // Keeps the dashboard the same on every device you sign in on.
 //
-// - Sign in with a one-time code sent to your email (works inside the iPhone
-//   home-screen app, where email links would open Safari instead).
+// - Sign in with email + password. (Email links/codes were avoided: on iPhone a
+//   link opens Safari instead of the home-screen app, and Supabase's free email
+//   service doesn't allow adding a code to its emails.)
 // - Every change is saved to the cloud about a second after you make it.
 // - Other open devices are told instantly ("realtime") and pull the change.
 // - Works offline: changes are kept on the device and sent when back online.
@@ -35,7 +36,8 @@
 
   const { merge } = window.DashboardMerge;
   const sb = window.supabase.createClient(config.supabaseUrl, config.supabaseKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    // detectSessionInUrl picks up email-confirmation and password-reset links.
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
 
   let user = null;
@@ -212,6 +214,8 @@
   setInterval(() => { if (document.visibilityState === 'visible') sync(); }, POLL_MS);
 
   // ---------- sign in / out ----------
+  const appUrl = location.origin + location.pathname;
+
   function handleSession(session) {
     const nextUser = session?.user || null;
     if ((nextUser?.id || null) === (user?.id || null)) return;   // e.g. a routine token refresh
@@ -229,74 +233,135 @@
     }
   }
 
-  // Supabase recommends not calling it again from inside this callback, hence setTimeout.
-  sb.auth.onAuthStateChange((_event, session) => setTimeout(() => handleSession(session), 0));
-
-  let pendingEmail = '';
-
-  function showEmailStep() {
-    $('signInEmailForm').hidden = false;
-    $('signInCodeForm').hidden = true;
-    $('signInEmailError').textContent = '';
-    $('signInEmail').focus();
-  }
-
-  function showCodeStep() {
-    $('signInEmailForm').hidden = true;
-    $('signInCodeForm').hidden = false;
-    $('signInCode').value = '';
-    $('signInCodeError').textContent = '';
-    $('signInCodeText').textContent = `We sent a code to ${pendingEmail}. Type it below. It can take a minute to arrive; check spam too.`;
-    $('signInCode').focus();
-  }
-
-  $('syncSignInBtn').addEventListener('click', () => {
-    $('signInDialog').showModal();
-    showEmailStep();
-  });
-
-  $('signInCancel').addEventListener('click', () => $('signInDialog').close());
-  $('signInBack').addEventListener('click', showEmailStep);
-
-  $('signInEmailForm').addEventListener('submit', async event => {
-    event.preventDefault();
-    const email = $('signInEmail').value.trim();
-    if (!email) return;
-    const button = $('signInSend');
-    button.disabled = true;
-    $('signInEmailError').textContent = '';
-    try {
-      const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-      if (error) throw error;
-      pendingEmail = email;
-      showCodeStep();
-    } catch (error) {
-      $('signInEmailError').textContent = error.message || 'Could not send the code. Try again.';
-    } finally {
-      button.disabled = false;
+  // Remove sign-in details from the address bar after an email link was opened.
+  function cleanUrl() {
+    if (/access_token|refresh_token|error_description|type=/.test(location.hash)) {
+      history.replaceState(null, '', location.pathname + location.search);
     }
-  });
+  }
 
-  $('signInCode').addEventListener('input', event => {
-    event.target.value = event.target.value.replace(/\D/g, '');
-  });
+  // An email link that failed (e.g. expired) arrives as an error in the address.
+  const urlError = new URLSearchParams(location.hash.slice(1)).get('error_description');
 
-  $('signInCodeForm').addEventListener('submit', async event => {
+  // Supabase recommends not calling it again from inside this callback, hence setTimeout.
+  sb.auth.onAuthStateChange((event, session) => setTimeout(() => {
+    handleSession(session);
+    if (event === 'PASSWORD_RECOVERY') openAuth('newpassword');
+    if (event === 'SIGNED_IN' && /type=signup/.test(location.hash)) toast('Email confirmed. Signed in.');
+    cleanUrl();
+  }, 0));
+
+  if (urlError) {
+    setTimeout(() => alert(`That email link didn't work: ${urlError.replace(/\+/g, ' ')}.\n\nIf it expired, ask for a new one.`), 300);
+    cleanUrl();
+  }
+
+  // The sign-in box has four modes.
+  const MODES = {
+    signin: {
+      title: 'Sign in to sync',
+      text: 'Use the same email and password on every device.',
+      submit: 'Sign in', email: true, password: 'current-password',
+      links: ['authToSignup', 'authToForgot']
+    },
+    signup: {
+      title: 'Create your account',
+      text: 'Do this once, on your first device. Then sign in with the same details everywhere else. Use at least 8 characters.',
+      submit: 'Create account', email: true, password: 'new-password',
+      links: ['authToSignin']
+    },
+    forgot: {
+      title: 'Reset your password',
+      text: "We'll email you a link. Open it, choose a new password, then sign in here with it.",
+      submit: 'Send reset link', email: true, password: null,
+      links: ['authToSignin']
+    },
+    newpassword: {
+      title: 'Choose a new password',
+      text: 'At least 8 characters. You will use it to sign in on all your devices.',
+      submit: 'Save password', email: false, password: 'new-password',
+      links: []
+    }
+  };
+
+  let mode = 'signin';
+
+  function openAuth(nextMode) {
+    mode = nextMode;
+    const m = MODES[mode];
+    $('authTitle').textContent = m.title;
+    $('authText').textContent = m.text;
+    $('authSubmit').textContent = m.submit;
+    $('authEmailWrap').hidden = !m.email;
+    $('authPasswordWrap').hidden = !m.password;
+    $('authPassword').autocomplete = m.password || 'off';
+    $('authPassword').value = '';
+    $('authError').textContent = '';
+    $('authMessage').textContent = '';
+    ['authToSignup', 'authToForgot', 'authToSignin'].forEach(id => { $(id).hidden = !m.links.includes(id); });
+    if (!$('signInDialog').open) $('signInDialog').showModal();
+    (m.email && !$('authEmail').value ? $('authEmail') : (m.password ? $('authPassword') : $('authEmail'))).focus();
+  }
+
+  function friendlyError(error) {
+    const text = String(error?.message || error || '');
+    if (/invalid login credentials/i.test(text)) return 'Wrong email or password.';
+    if (/email not confirmed/i.test(text)) return 'Please click the confirmation link we emailed you first, then sign in.';
+    if (/signups? not allowed|signup is disabled/i.test(text)) return 'New accounts are turned off for this app.';
+    if (/rate limit|too many/i.test(text)) return 'Too many attempts. Please wait a few minutes and try again.';
+    if (/should be different/i.test(text)) return 'Choose a password different from your old one.';
+    if (isNetworkError(error)) return 'No connection. Check your internet and try again.';
+    return text || 'Something went wrong. Please try again.';
+  }
+
+  $('syncSignInBtn').addEventListener('click', () => openAuth('signin'));
+  $('authCancel').addEventListener('click', () => $('signInDialog').close());
+  $('authToSignup').addEventListener('click', () => openAuth('signup'));
+  $('authToForgot').addEventListener('click', () => openAuth('forgot'));
+  $('authToSignin').addEventListener('click', () => openAuth('signin'));
+
+  $('authForm').addEventListener('submit', async event => {
     event.preventDefault();
-    const token = $('signInCode').value.trim();
-    if (!token) return;
-    const button = $('signInVerify');
+    const email = $('authEmail').value.trim();
+    const password = $('authPassword').value;
+    const m = MODES[mode];
+    $('authError').textContent = '';
+    $('authMessage').textContent = '';
+
+    if (m.email && !/^\S+@\S+\.\S+$/.test(email)) return ($('authError').textContent = 'Enter a valid email address.');
+    if (m.password && mode !== 'signin' && password.length < 8) return ($('authError').textContent = 'Use at least 8 characters.');
+    if (m.password && !password) return ($('authError').textContent = 'Enter your password.');
+
+    const button = $('authSubmit');
     button.disabled = true;
-    $('signInCodeError').textContent = '';
     try {
-      const { error } = await sb.auth.verifyOtp({ email: pendingEmail, token, type: 'email' });
-      if (error) throw error;
-      $('signInDialog').close();
-      toast('Signed in. Syncing…');
+      if (mode === 'signin') {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        $('signInDialog').close();
+        toast('Signed in. Syncing…');
+      } else if (mode === 'signup') {
+        const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: appUrl } });
+        if (error) throw error;
+        if (data.session) {
+          $('signInDialog').close();
+          toast('Account created. Syncing…');
+        } else {
+          openAuth('signin');
+          $('authMessage').textContent = 'Almost done: we emailed you a confirmation link. Click it, then come back and sign in here.';
+        }
+      } else if (mode === 'forgot') {
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl });
+        if (error) throw error;
+        $('authMessage').textContent = 'If that email has an account, a reset link is on its way. It can take a minute; check spam too.';
+      } else if (mode === 'newpassword') {
+        const { error } = await sb.auth.updateUser({ password });
+        if (error) throw error;
+        $('signInDialog').close();
+        toast('Password updated');
+      }
     } catch (error) {
-      $('signInCodeError').textContent = /expired|invalid/i.test(error.message || '')
-        ? 'That code is wrong or has expired. Check the latest email, or go back and send a new one.'
-        : (error.message || 'Could not verify the code.');
+      $('authError').textContent = friendlyError(error);
     } finally {
       button.disabled = false;
     }

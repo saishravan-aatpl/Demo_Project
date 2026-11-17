@@ -1130,3 +1130,34 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .sync-status[data-state="offline"]::before { background: #9ca3af; }
 .sync-status[data-state="error"] { color: var(--danger); }
 .sync-status[data-state="error"]::before { background: var(--danger); }
+
+.auth-message:empty { display: none; }
+
+.auth-message {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.link-btn {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 4px 2px;
+}
+
+.link-btn:hover { transform: none; color: var(--text); text-decoration: underline; }
