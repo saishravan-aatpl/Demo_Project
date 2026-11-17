@@ -1,0 +1,5 @@
+# Never commit personal data backups
+*backup*.json
+.DS_Store
+node_modules/
+.vercel
