@@ -921,13 +921,22 @@ header { margin-bottom: 18px; }
 
 .toast { bottom: max(18px, env(safe-area-inset-bottom)); }
 
-/* Drag-to-reorder is a mouse feature for now; hide the handles on touch screens */
+/* Touch screens: drag handles work with a finger (see enableTouchReorder in app.js) */
 @media (hover: none) and (pointer: coarse) {
   .drag-handle,
-  .task-handle { display: none; }
-  .task-item { grid-template-columns: auto 1fr auto auto; }
-  .project-header { grid-template-columns: 1fr auto auto auto auto; }
+  .task-handle {
+    touch-action: none;          /* dragging the handle must not scroll the page */
+    -webkit-user-select: none;
+    padding: 8px 6px;
+  }
   button:hover { transform: none; }
+}
+
+.touch-dragging {
+  position: relative;
+  z-index: 5;
+  outline: 2px solid #6b7280;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.18);
 }
 
 @media (max-width: 900px) {
@@ -935,8 +944,8 @@ header { margin-bottom: 18px; }
   .project-header {
     grid-template-columns: auto 1fr auto auto;
     grid-template-areas:
-      "handle title title add"
-      "progress progress collapse delete";
+      "handle title    title    add"
+      "handle progress collapse delete";
     row-gap: 6px;
   }
   .project-header .drag-handle { grid-area: handle; }
@@ -977,14 +986,6 @@ header { margin-bottom: 18px; }
   .task-delete-x { width: 32px; height: 32px; }
 }
 
-@media (max-width: 900px) and (hover: none) and (pointer: coarse) {
-  .project-header {
-    grid-template-columns: 1fr auto auto;
-    grid-template-areas:
-      "title title add"
-      "progress collapse delete";
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /* PIN lock                                                            */
@@ -1161,3 +1162,108 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 }
 
 .link-btn:hover { transform: none; color: var(--text); text-decoration: underline; }
+
+/* ------------------------------------------------------------------ */
+/* Task names wrap instead of being cut off                            */
+/* ------------------------------------------------------------------ */
+
+.task-text {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+/* ------------------------------------------------------------------ */
+/* Phone layout                                                        */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 600px) {
+  /* Leaving time: label and time side by side, Copy Summary below */
+  .leave-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "label time"
+      "copy copy";
+    gap: 10px 12px;
+  }
+  .leave-row label { grid-area: label; }
+  .leave-row .copy-summary-top { grid-area: copy; justify-self: stretch; }
+
+  /* iPhone draws time boxes wider than the space they're given; tame it */
+  #leaveTime {
+    grid-area: time;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 150px;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    display: block;
+  }
+  #leaveTime::-webkit-date-and-time-value { text-align: left; }
+
+  /* Task row: [handle] [tick] [task name, wrapping]       [x]
+                                [person, or "+ Assign"]          */
+  .task-item {
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas:
+      "handle check text   del"
+      "handle check person del";
+    align-items: start;
+    column-gap: 2px;
+    row-gap: 0;
+    padding: 6px 2px;
+  }
+  .task-item .task-handle { grid-area: handle; align-self: center; padding: 8px 4px; font-size: 15px; }
+  .task-item .task-check { grid-area: check; margin: 7px 4px 0 0; }
+  .task-item .task-text { grid-area: text; padding: 4px !important; }
+  .task-item .delete-task { grid-area: del; align-self: center; }
+
+  .task-item .person-wrap {
+    grid-area: person;
+    justify-content: flex-start;
+    width: auto;
+    flex: none;
+    min-height: 0;
+    border-left: none;
+    padding: 0 0 2px 2px;
+  }
+  .task-item .person-field {
+    width: auto;
+    max-width: 100%;
+    min-height: 24px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: #eef0f3;
+    font-size: 13px;
+  }
+  .task-item .person-field:empty {
+    background: transparent;
+    padding-left: 2px;
+  }
+  .task-item .person-field:empty::after {
+    content: '+ Assign person';
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .task-item.done .person-field { background: transparent; padding-left: 2px; }
+  .person-menu { left: 0; right: auto; }
+
+  /* "View: person" list: show full task names, project underneath */
+  .people-task-row {
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    row-gap: 2px;
+  }
+  .people-task-check { margin-top: 2px; }
+  .people-task-text { white-space: normal; overflow: visible; }
+  .people-project-name {
+    grid-column: 2;
+    justify-self: start;
+    text-align: left;
+    max-width: 100%;
+  }
+}

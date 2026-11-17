@@ -285,7 +285,7 @@ function render() {
       item.innerHTML = `
         <span class="task-handle" title="Drag task">⋮⋮</span>
         <input type="checkbox" class="task-check" ${task.done ? 'checked' : ''} aria-label="Mark task done" />
-        <input type="text" class="task-text" value="${escapeHtml(task.text)}" aria-label="Task text" />
+        <textarea class="task-text" rows="1" aria-label="Task text" enterkeyhint="done">${escapeHtml(task.text)}</textarea>
         <div class="person-wrap">
           <button class="person-field" type="button" title="Assign person">${task.person ? escapeHtml(task.person) : ''}</button>
           <div class="person-menu" role="dialog" aria-label="Assign person">
@@ -309,6 +309,70 @@ function render() {
   renderSummary();
   renderPeopleView();
   updateRemainingTime();
+  autosizeAllTaskText();
+}
+
+// Task names wrap onto several lines; grow each box to fit its text.
+function autosizeTaskText(el) {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+}
+
+function autosizeAllTaskText() {
+  document.querySelectorAll('.task-text').forEach(autosizeTaskText);
+}
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(autosizeAllTaskText, 150);
+});
+
+// Drag-to-reorder for touch screens (phones/tablets), using the handle.
+// Mouse users keep the original drag-and-drop.
+function enableTouchReorder(handle, item, itemSelector, onDrop) {
+  if (!isTouchDevice || !handle) return;
+  handle.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse') return;
+    event.preventDefault();
+    event.stopPropagation();
+    // Listen on the whole window: moving the item in the page would make the
+    // handle lose track of the finger.
+    const pointerId = event.pointerId;
+    item.classList.add('touch-dragging');
+    let scrollTimer = null;
+
+    const onMove = moveEvent => {
+      if (moveEvent.pointerId !== pointerId) return;
+      const y = moveEvent.clientY;
+      // Scroll the page when the finger is near the top or bottom edge.
+      clearInterval(scrollTimer);
+      const edge = 70;
+      if (y < edge || y > window.innerHeight - edge) {
+        const step = y < edge ? -12 : 12;
+        scrollTimer = setInterval(() => window.scrollBy(0, step), 16);
+      }
+      const under = document.elementFromPoint(moveEvent.clientX, y)?.closest(itemSelector);
+      if (!under || under === item || under.parentElement !== item.parentElement) return;
+      const rect = under.getBoundingClientRect();
+      if (y > rect.top + rect.height / 2) under.after(item);
+      else under.before(item);
+    };
+
+    const onEnd = endEvent => {
+      if (endEvent.pointerId !== pointerId) return;
+      clearInterval(scrollTimer);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
+      item.classList.remove('touch-dragging');
+      onDrop();
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+  });
 }
 
 function renderSummary() {
@@ -515,6 +579,12 @@ function bindProjectCardEvents(card, projectId) {
     syncProjectOrderFromDom();
   });
 
+  enableTouchReorder(card.querySelector('.drag-handle'), card, '.project-card', () => {
+    syncProjectOrderFromDom();
+    saveState(false);
+    render();
+  });
+
   const projectTitleInput = card.querySelector('.project-title');
 
   projectTitleInput.addEventListener('focus', event => {
@@ -638,6 +708,13 @@ function bindTaskEvents(card, project) {
       syncTaskOrderFromDom(card, project);
     });
 
+    enableTouchReorder(item.querySelector('.task-handle'), item, '.task-item', () => {
+      syncTaskOrderFromDom(card, project);
+      sortDoneTasksToBottom(project);
+      saveState(false);
+      render();
+    });
+
     item.querySelector('.task-check').addEventListener('change', event => {
       task.done = event.target.checked;
       sortDoneTasksToBottom(project);
@@ -652,7 +729,10 @@ function bindTaskEvents(card, project) {
     });
 
     taskTextInput.addEventListener('input', event => {
+      // Tasks are one line of text that wraps on screen; turn pasted line breaks into spaces.
+      if (/[\r\n]/.test(event.target.value)) event.target.value = event.target.value.replace(/[\r\n]+/g, ' ');
       task.text = event.target.value.trimStart();
+      autosizeTaskText(event.target);
       saveState(false);
     });
 
