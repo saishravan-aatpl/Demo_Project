@@ -921,39 +921,8 @@ header { margin-bottom: 18px; }
 
 .toast { bottom: max(18px, env(safe-area-inset-bottom)); }
 
-/* Touch screens: drag handles work with a finger (see enableTouchReorder in app.js) */
 @media (hover: none) and (pointer: coarse) {
-  .drag-handle,
-  .task-handle {
-    touch-action: none;          /* dragging the handle must not scroll the page */
-    -webkit-user-select: none;
-    padding: 8px 6px;
-  }
   button:hover { transform: none; }
-}
-
-.touch-dragging {
-  position: relative;
-  z-index: 5;
-  outline: 2px solid #6b7280;
-  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.18);
-}
-
-@media (max-width: 900px) {
-  /* Project header: title + "+" on row one, progress and actions on row two */
-  .project-header {
-    grid-template-columns: auto 1fr auto auto;
-    grid-template-areas:
-      "handle title    title    add"
-      "handle progress collapse delete";
-    row-gap: 6px;
-  }
-  .project-header .drag-handle { grid-area: handle; }
-  .project-header .project-title { grid-area: title; }
-  .project-header .show-task-form { grid-area: add; }
-  .project-header .project-progress { grid-area: progress; grid-column: auto; padding-left: 4px; }
-  .project-header .collapse-project { grid-area: collapse; grid-column: auto; }
-  .project-header .delete-project { grid-area: delete; grid-column: auto; }
 }
 
 @media (max-width: 600px) {
@@ -983,7 +952,6 @@ header { margin-bottom: 18px; }
 
   /* Bigger tap targets */
   .task-check, .people-task-check { width: 22px; height: 22px; }
-  .task-delete-x { width: 32px; height: 32px; }
 }
 
 
@@ -1205,52 +1173,11 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
   }
   #leaveTime::-webkit-date-and-time-value { text-align: left; }
 
-  /* Task row: [handle] [tick] [task name, wrapping]       [x]
-                                [person, or "+ Assign"]          */
-  .task-item {
-    grid-template-columns: auto auto 1fr auto;
-    grid-template-areas:
-      "handle check text   del"
-      "handle check person del";
-    align-items: start;
-    column-gap: 2px;
-    row-gap: 0;
-    padding: 6px 2px;
-  }
-  .task-item .task-handle { grid-area: handle; align-self: center; padding: 8px 4px; font-size: 15px; }
-  .task-item .task-check { grid-area: check; margin: 7px 4px 0 0; }
-  .task-item .task-text { grid-area: text; padding: 4px !important; }
-  .task-item .delete-task { grid-area: del; align-self: center; }
-
-  .task-item .person-wrap {
-    grid-area: person;
-    justify-content: flex-start;
-    width: auto;
-    flex: none;
-    min-height: 0;
-    border-left: none;
-    padding: 0 0 2px 2px;
-  }
-  .task-item .person-field {
-    width: auto;
-    max-width: 100%;
-    min-height: 24px;
-    padding: 2px 10px;
-    border-radius: 999px;
-    background: #eef0f3;
-    font-size: 13px;
-  }
-  .task-item .person-field:empty {
-    background: transparent;
-    padding-left: 2px;
-  }
-  .task-item .person-field:empty::after {
-    content: '+ Assign person';
-    color: var(--muted);
-    font-weight: 600;
-  }
-  .task-item.done .person-field { background: transparent; padding-left: 2px; }
-  .person-menu { left: 0; right: auto; }
+  /* Task row, same as the laptop: [tick] [name, wraps] | [person] [⋯] */
+  .task-item { grid-template-columns: auto 1fr 76px 28px; gap: 6px; padding: 6px 4px 6px 8px; }
+  .person-wrap { width: 76px; flex-basis: 76px; padding-left: 8px; }
+  .person-field { width: 100%; padding: 2px 0; }
+  .person-menu { width: min(260px, calc(100vw - 32px)); }
 
   /* "View: person" list: show full task names, project underneath */
   .people-task-row {
@@ -1267,3 +1194,149 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     max-width: 100%;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Unified task & project design (laptop and phone)                    */
+/* ------------------------------------------------------------------ */
+
+/* Project header: [☰] [title] [1/4] [+] [⋯]  on one row everywhere */
+.project-header { grid-template-columns: auto 1fr auto auto auto; }
+.project-header .project-progress { grid-column: auto; }
+.drag-handle { touch-action: none; cursor: grab; }
+
+/* ⋯ buttons */
+.more-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
+}
+.more-btn:hover, .more-btn[aria-expanded="true"] { background: #f3f4f6; color: var(--text); transform: none; }
+.task-more { width: 28px; height: 28px; font-size: 18px; }
+
+/* Task row: [⋮⋮ on hover] [tick] [name] | [person] [⋯] */
+.task-item {
+  grid-template-columns: 14px auto 1fr auto auto;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+.task-handle {
+  padding: 0;
+  font-size: 13px;
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 0.12s ease;
+}
+.task-item:hover .task-handle { opacity: 1; }
+
+.task-text {
+  display: block;
+  min-width: 0;
+  padding: 4px !important;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: text;
+  outline: none;
+}
+div.task-text:focus-visible { border-color: var(--border) !important; }
+textarea.task-text.editing {
+  -webkit-user-select: text;
+  user-select: text;
+  background: #fff !important;
+  border-color: var(--border) !important;
+}
+
+.person-field:empty::after { content: '—'; color: #c0c5cd; font-weight: 500; }
+
+/* Touch screens: no handles; press and hold a task to drag it */
+@media (hover: none) and (pointer: coarse) {
+  .task-handle { display: none; }
+  .task-item { grid-template-columns: auto 1fr auto auto; }
+}
+@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+  .task-item { grid-template-columns: auto 1fr 76px 28px; }
+}
+
+/* Dragging */
+body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
+body.is-dragging { -webkit-user-select: none; user-select: none; }
+
+.drag-pressing { background: #f3f4f6; transition: background 0.35s ease; }
+
+.drag-floating {
+  position: fixed !important;
+  z-index: 3000;
+  margin: 0 !important;
+  pointer-events: none;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(17, 24, 39, 0.22), 0 0 0 1px rgba(17, 24, 39, 0.08);
+  transform: scale(1.02);
+  opacity: 0.97;
+}
+
+.drag-placeholder {
+  list-style: none;
+  border: 2px dashed #c0c5cd;
+  border-radius: 10px;
+  background: rgba(17, 24, 39, 0.03);
+}
+.project-list > .drag-placeholder { border-radius: var(--radius); }
+
+.project-card.drop-target { box-shadow: 0 0 0 2px #111827, var(--shadow); }
+.project-card.collapsed.drop-target .project-header { background: #eef0f3; }
+
+/* Pop-up menu for ⋯ */
+.action-menu {
+  position: absolute;
+  z-index: 2500;
+  min-width: 200px;
+  max-width: min(300px, calc(100vw - 16px));
+  max-height: min(60vh, 380px);
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 14px 32px rgba(17, 24, 39, 0.16);
+  padding: 6px;
+}
+.action-menu-heading {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 10px 4px;
+}
+.action-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: normal;
+}
+.action-menu-item.indent { padding-left: 18px; font-weight: 500; }
+.action-menu-item:hover, .action-menu-item:focus-visible { background: #f3f4f6; transform: none; outline: none; }
+.action-menu-item.danger { color: var(--danger); }
+.action-menu-item:disabled { color: #c0c5cd; background: transparent; cursor: default; }
+.action-menu-item.has-submenu::after { content: '›'; float: right; color: var(--muted); font-weight: 700; }
+.action-menu-item.back { color: var(--muted); font-size: 13px; padding: 8px 10px; }

@@ -20,8 +20,6 @@ const defaultState = {
 
 let storageAvailable = checkStorageAvailable();
 let state = loadState();
-let draggedProjectId = null;
-let draggedTask = null;
 let toastTimer = null;
 const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
@@ -254,17 +252,15 @@ function render() {
     sortDoneTasksToBottom(project);
     const card = document.createElement('article');
     card.className = `project-card ${project.collapsed ? 'collapsed' : ''}`;
-    card.draggable = !isTouchDevice;
     card.dataset.projectId = project.id;
 
     card.innerHTML = `
       <div class="project-header">
-        <span class="drag-handle" title="Drag project">☰</span>
+        <span class="drag-handle" title="Drag to reorder projects" aria-hidden="true">☰</span>
         <input class="project-title" type="text" value="${escapeHtml(project.name)}" aria-label="Project name" />
-        <span class="project-progress">${project.tasks.filter(t => t.done).length}/${project.tasks.length} done</span>
-        <button class="btn-secondary btn-icon show-task-form" type="button" title="Add task">+</button>
-        <button class="btn-secondary btn-small collapse-project" type="button">${project.collapsed ? 'Expand' : 'Collapse'}</button>
-        <button class="btn-danger btn-small delete-project" type="button">Delete</button>
+        <span class="project-progress" title="Tasks done">${project.tasks.filter(t => t.done).length}/${project.tasks.length}</span>
+        <button class="btn-secondary btn-icon show-task-form" type="button" title="Add task" aria-label="Add task">+</button>
+        <button class="more-btn project-more" type="button" title="More" aria-label="More project actions" aria-haspopup="menu" aria-expanded="false">⋯</button>
       </div>
       <div class="project-body">
         <form class="task-form">
@@ -281,11 +277,10 @@ function render() {
       const item = document.createElement('li');
       item.className = `task-item ${task.done ? 'done' : ''}`;
       item.dataset.taskId = task.id;
-      item.draggable = !isTouchDevice;
       item.innerHTML = `
-        <span class="task-handle" title="Drag task">⋮⋮</span>
+        <span class="task-handle" title="Drag to reorder" aria-hidden="true">⋮⋮</span>
         <input type="checkbox" class="task-check" ${task.done ? 'checked' : ''} aria-label="Mark task done" />
-        <textarea class="task-text" rows="1" aria-label="Task text" enterkeyhint="done">${escapeHtml(task.text)}</textarea>
+        <div class="task-text" tabindex="0" role="button" aria-label="Edit task: ${escapeHtml(task.text)}">${escapeHtml(task.text)}</div>
         <div class="person-wrap">
           <button class="person-field" type="button" title="Assign person">${task.person ? escapeHtml(task.person) : ''}</button>
           <div class="person-menu" role="dialog" aria-label="Assign person">
@@ -297,7 +292,7 @@ function render() {
             </div>
           </div>
         </div>
-        <button class="task-delete-x delete-task" type="button" title="Delete task" aria-label="Delete task">×</button>
+        <button class="more-btn task-more" type="button" title="More" aria-label="More task actions" aria-haspopup="menu" aria-expanded="false">⋯</button>
       `;
       taskList.appendChild(item);
     });
@@ -319,7 +314,7 @@ function autosizeTaskText(el) {
 }
 
 function autosizeAllTaskText() {
-  document.querySelectorAll('.task-text').forEach(autosizeTaskText);
+  document.querySelectorAll('textarea.task-text').forEach(autosizeTaskText);
 }
 
 let resizeTimer = null;
@@ -328,51 +323,44 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(autosizeAllTaskText, 150);
 });
 
-// Drag-to-reorder for touch screens (phones/tablets), using the handle.
-// Mouse users keep the original drag-and-drop.
-function enableTouchReorder(handle, item, itemSelector, onDrop) {
-  if (!isTouchDevice || !handle) return;
-  handle.addEventListener('pointerdown', event => {
-    if (event.pointerType === 'mouse') return;
-    event.preventDefault();
-    event.stopPropagation();
-    // Listen on the whole window: moving the item in the page would make the
-    // handle lose track of the finger.
-    const pointerId = event.pointerId;
-    item.classList.add('touch-dragging');
-    let scrollTimer = null;
+// ---------- moving tasks and projects ----------
+const TASK_DRAG_IGNORE = 'input, button, textarea, select, .person-menu';
 
-    const onMove = moveEvent => {
-      if (moveEvent.pointerId !== pointerId) return;
-      const y = moveEvent.clientY;
-      // Scroll the page when the finger is near the top or bottom edge.
-      clearInterval(scrollTimer);
-      const edge = 70;
-      if (y < edge || y > window.innerHeight - edge) {
-        const step = y < edge ? -12 : 12;
-        scrollTimer = setInterval(() => window.scrollBy(0, step), 16);
-      }
-      const under = document.elementFromPoint(moveEvent.clientX, y)?.closest(itemSelector);
-      if (!under || under === item || under.parentElement !== item.parentElement) return;
-      const rect = under.getBoundingClientRect();
-      if (y > rect.top + rect.height / 2) under.after(item);
-      else under.before(item);
-    };
+function moveTask(taskId, fromProject, toProject, index) {
+  const task = fromProject.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  fromProject.tasks = fromProject.tasks.filter(t => t.id !== taskId);
+  const position = index === undefined ? toProject.tasks.filter(t => !t.done).length : Math.max(0, Math.min(index, toProject.tasks.length));
+  toProject.tasks.splice(position, 0, task);
+  sortDoneTasksToBottom(toProject);
+  saveState(false);
+  render();
+  if (fromProject !== toProject) showToast(`Moved to ${toProject.name}`);
+}
 
-    const onEnd = endEvent => {
-      if (endEvent.pointerId !== pointerId) return;
-      clearInterval(scrollTimer);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onEnd);
-      window.removeEventListener('pointercancel', onEnd);
-      item.classList.remove('touch-dragging');
-      onDrop();
-    };
+function moveProject(projectId, index) {
+  const project = getProject(projectId);
+  if (!project) return;
+  state.projects = state.projects.filter(p => p.id !== projectId);
+  state.projects.splice(Math.max(0, Math.min(index, state.projects.length)), 0, project);
+  saveState(false);
+  render();
+}
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onEnd);
-    window.addEventListener('pointercancel', onEnd);
-  });
+// Where a dragged task would land: any project's list, including collapsed ones.
+function resolveTaskDrop(x, y, el) {
+  const under = document.elementFromPoint(x, y);
+  const card = under?.closest('.project-card');
+  if (!card) return null;
+  const list = card.querySelector('.task-list');
+  if (card.classList.contains('collapsed')) return { dropInto: list, highlight: card };
+  const header = card.querySelector('.project-header');
+  if (header.contains(under)) return { list, before: list.firstElementChild, highlight: card };
+  return { list, before: Drag.itemAfterY(list, '.task-item', y, el), highlight: card };
+}
+
+function resolveProjectDrop(x, y, el) {
+  return { list: els.projectList, before: Drag.itemAfterY(els.projectList, '.project-card', y, el) };
 }
 
 function renderSummary() {
@@ -553,36 +541,12 @@ function updatePersonFilterActiveOption() {
 function bindProjectCardEvents(card, projectId) {
   const project = getProject(projectId);
 
-  card.addEventListener('dragstart', event => {
-    if (event.target.classList.contains('task-item')) return;
-    draggedProjectId = projectId;
-    card.classList.add('dragging');
-  });
-
-  card.addEventListener('dragend', event => {
-    if (event.target.classList.contains('task-item')) return;
-    draggedProjectId = null;
-    card.classList.remove('dragging');
-    saveState(false);
-    render();
-  });
-
-  card.addEventListener('dragover', event => {
-    if (!draggedProjectId || draggedTask) return;
-    event.preventDefault();
-    const dragging = document.querySelector('.project-card.dragging');
-    if (!dragging || dragging === card) return;
-
-    const rect = card.getBoundingClientRect();
-    const after = event.clientY > rect.top + rect.height / 2;
-    after ? card.after(dragging) : card.before(dragging);
-    syncProjectOrderFromDom();
-  });
-
-  enableTouchReorder(card.querySelector('.drag-handle'), card, '.project-card', () => {
-    syncProjectOrderFromDom();
-    saveState(false);
-    render();
+  Drag.attach(card, {
+    itemSelector: '.project-card',
+    handle: '.drag-handle',
+    resolveDrop: resolveProjectDrop,
+    onDrop: ({ index }) => moveProject(projectId, index),
+    onCancel: render
   });
 
   const projectTitleInput = card.querySelector('.project-title');
@@ -618,18 +582,26 @@ function bindProjectCardEvents(card, projectId) {
   });
 
 
-  card.querySelector('.collapse-project').addEventListener('click', () => {
-    project.collapsed = !project.collapsed;
-    saveState(false);
-    render();
-  });
-
-  card.querySelector('.delete-project').addEventListener('click', () => {
-    const confirmed = confirm(`Delete project "${project.name}" and all its tasks?`);
-    if (!confirmed) return;
-    state.projects = state.projects.filter(p => p.id !== projectId);
-    saveState();
-    render();
+  card.querySelector('.project-more').addEventListener('click', event => {
+    event.stopPropagation();
+    closeAllPersonMenus();
+    ActionMenu.open(event.currentTarget, [
+      {
+        label: project.collapsed ? 'Expand' : 'Collapse',
+        onClick: () => { project.collapsed = !project.collapsed; saveState(false); render(); }
+      },
+      {
+        label: 'Delete project',
+        danger: true,
+        onClick: () => {
+          const confirmed = confirm(`Delete project "${project.name}" and all its tasks?`);
+          if (!confirmed) return;
+          state.projects = state.projects.filter(p => p.id !== projectId);
+          saveState();
+          render();
+        }
+      }
+    ]);
   });
 
   const taskForm = card.querySelector('.task-form');
@@ -680,39 +652,17 @@ function bindTaskEvents(card, project) {
     const taskId = item.dataset.taskId;
     const task = project.tasks.find(t => t.id === taskId);
 
-    item.addEventListener('dragstart', event => {
-      draggedTask = { projectId: project.id, taskId };
-      item.classList.add('dragging');
-      event.stopPropagation();
-    });
-
-    item.addEventListener('dragend', event => {
-      item.classList.remove('dragging');
-      draggedTask = null;
-      syncTaskOrderFromDom(card, project);
-      sortDoneTasksToBottom(project);
-      saveState(false);
-      render();
-      event.stopPropagation();
-    });
-
-    item.addEventListener('dragover', event => {
-      if (!draggedTask || draggedTask.projectId !== project.id) return;
-      event.preventDefault();
-      const dragging = card.querySelector('.task-item.dragging');
-      if (!dragging || dragging === item) return;
-
-      const rect = item.getBoundingClientRect();
-      const after = event.clientY > rect.top + rect.height / 2;
-      after ? item.after(dragging) : item.before(dragging);
-      syncTaskOrderFromDom(card, project);
-    });
-
-    enableTouchReorder(item.querySelector('.task-handle'), item, '.task-item', () => {
-      syncTaskOrderFromDom(card, project);
-      sortDoneTasksToBottom(project);
-      saveState(false);
-      render();
+    Drag.attach(item, {
+      itemSelector: '.task-item',
+      handle: '.task-handle',
+      wholeItem: true,
+      ignore: TASK_DRAG_IGNORE,
+      resolveDrop: resolveTaskDrop,
+      onDrop: ({ list, index }) => {
+        const toProject = getProject(list.closest('.project-card').dataset.projectId);
+        if (toProject) moveTask(taskId, project, toProject, index);
+      },
+      onCancel: render
     });
 
     item.querySelector('.task-check').addEventListener('change', event => {
@@ -722,43 +672,25 @@ function bindTaskEvents(card, project) {
       render();
     });
 
-    const taskTextInput = item.querySelector('.task-text');
-
-    taskTextInput.addEventListener('focus', event => {
-      event.target.dataset.original = task.text;
-    });
-
-    taskTextInput.addEventListener('input', event => {
-      // Tasks are one line of text that wraps on screen; turn pasted line breaks into spaces.
-      if (/[\r\n]/.test(event.target.value)) event.target.value = event.target.value.replace(/[\r\n]+/g, ' ');
-      task.text = event.target.value.trimStart();
-      autosizeTaskText(event.target);
-      saveState(false);
-    });
-
-    taskTextInput.addEventListener('keydown', event => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        if (!event.target.value.trim()) {
-          project.tasks = project.tasks.filter(t => t.id !== taskId);
-        }
-        saveState();
-        render();
-      }
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        task.text = event.target.dataset.original || task.text || 'Untitled task';
-        saveState(false);
-        render();
-      }
-    });
-
-    taskTextInput.addEventListener('blur', event => {
-      if (!event.target.value.trim()) {
-        project.tasks = project.tasks.filter(t => t.id !== taskId);
-      }
-      saveState();
-      render();
+    // The task name is shown as text; tapping it turns it into an edit box.
+    const taskTextView = item.querySelector('.task-text');
+    const startEditing = () => {
+      if (Drag.isDragging()) return;
+      const editor = document.createElement('textarea');
+      editor.className = 'task-text editing';
+      editor.rows = 1;
+      editor.value = task.text;
+      editor.setAttribute('aria-label', 'Task text');
+      editor.setAttribute('enterkeyhint', 'done');
+      taskTextView.replaceWith(editor);
+      autosizeTaskText(editor);
+      editor.focus();
+      editor.setSelectionRange(editor.value.length, editor.value.length);
+      bindTaskEditor(editor, project, task);
+    };
+    taskTextView.addEventListener('click', startEditing);
+    taskTextView.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); startEditing(); }
     });
 
     const personField = item.querySelector('.person-field');
@@ -767,6 +699,7 @@ function bindTaskEvents(card, project) {
 
     personField.addEventListener('click', event => {
       event.stopPropagation();
+      ActionMenu.close();
       const isOpen = personMenu.classList.contains('open');
       closeAllPersonMenus(personMenu);
       personMenu.classList.toggle('open', !isOpen);
@@ -839,12 +772,70 @@ function bindTaskEvents(card, project) {
       personMenu.classList.remove('open');
     });
 
-    item.querySelector('.delete-task').addEventListener('click', () => {
-      project.tasks = project.tasks.filter(t => t.id !== taskId);
-      saveState();
-      render();
+    item.querySelector('.task-more').addEventListener('click', event => {
+      event.stopPropagation();
+      closeAllPersonMenus();
+      const others = state.projects.filter(p => p.id !== project.id);
+      const isFirst = project.tasks[0]?.id === taskId;
+      ActionMenu.open(event.currentTarget, [
+        {
+          label: 'Move to project',
+          disabled: !others.length,
+          submenu: [
+            { heading: 'Move to project' },
+            ...others.map(other => ({ label: other.name, indent: true, onClick: () => moveTask(taskId, project, other) }))
+          ]
+        },
+        { label: 'Move to top', disabled: isFirst, onClick: () => moveTask(taskId, project, project, 0) },
+        {
+          label: 'Delete task',
+          danger: true,
+          onClick: () => {
+            project.tasks = project.tasks.filter(t => t.id !== taskId);
+            saveState();
+            render();
+            showToast('Task deleted');
+          }
+        }
+      ]);
     });
   });
+}
+
+function bindTaskEditor(editor, project, task) {
+  const original = task.text;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    if (!editor.value.trim()) project.tasks = project.tasks.filter(t => t.id !== task.id);
+    saveState();
+    render();
+  };
+
+  editor.addEventListener('input', () => {
+    // Tasks are one line of text that wraps on screen; turn pasted line breaks into spaces.
+    if (/[\r\n]/.test(editor.value)) editor.value = editor.value.replace(/[\r\n]+/g, ' ');
+    task.text = editor.value.trimStart();
+    autosizeTaskText(editor);
+    saveState(false);
+  });
+
+  editor.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      finish();
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      task.text = original || 'Untitled task';
+      finished = true;
+      saveState(false);
+      render();
+    }
+  });
+
+  editor.addEventListener('blur', finish);
 }
 
 function uniqueNames(names) {
@@ -938,16 +929,6 @@ function sortDoneTasksToBottom(project) {
       return a.task.done ? 1 : -1;
     })
     .map(item => item.task);
-}
-
-function syncProjectOrderFromDom() {
-  const ids = [...els.projectList.querySelectorAll('.project-card')].map(card => card.dataset.projectId);
-  state.projects.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-}
-
-function syncTaskOrderFromDom(card, project) {
-  const ids = [...card.querySelectorAll('.task-item')].map(item => item.dataset.taskId);
-  project.tasks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 }
 
 function getProject(projectId) {
