@@ -1,0 +1,274 @@
+// PIN lock
+// ---------
+// An optional privacy screen for this device. It stops someone who picks up your
+// unlocked phone or laptop from seeing the dashboard.
+//
+// How it works:
+// - The PIN is never stored. We store a "hash": a scrambled fingerprint of the PIN
+//   (PBKDF2-SHA256 with a random salt). To check a PIN, we scramble what was typed
+//   the same way and compare fingerprints.
+// - The lock shows when the app opens, and again after it has been in the
+//   background for more than AUTO_LOCK_MS.
+// - "Forgot PIN" erases this device's dashboard data, otherwise the lock would be
+//   pointless. Data can be restored with Import Backup.
+
+(() => {
+  const PIN_KEY = 'officeDailyDashboard.pin';
+  const ATTEMPTS_KEY = 'officeDailyDashboard.pinAttempts';
+  // All of this app's saved data uses these prefixes (see app.js).
+  const DATA_KEY_PREFIXES = ['officeDailyDashboard.', 'officeProjectDashboard.'];
+  const AUTO_LOCK_MS = 60 * 1000;
+  const MAX_ATTEMPTS = 5;
+  const LOCKOUT_MS = 30 * 1000;
+  const ITERATIONS = 150000;
+
+  const root = document.documentElement;
+  const $ = id => document.getElementById(id);
+
+  // Shared with app.js so it can stop autosaving while data is being erased.
+  const api = { wiping: false, lock: () => lock() };
+  window.dashboardLock = api;
+
+  // ---------- storage helpers ----------
+  function readJson(key) {
+    try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; }
+  }
+
+  function writeJson(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+  }
+
+  function removeKey(key) {
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
+  }
+
+  const getPinRecord = () => readJson(PIN_KEY);
+  const hasPin = () => Boolean(getPinRecord()?.hash);
+  const isValidPin = pin => /^\d{4,6}$/.test(pin);
+  const cryptoAvailable = () => Boolean(window.crypto?.subtle);
+
+  // ---------- hashing ----------
+  const toB64 = buffer => btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const fromB64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
+
+  async function hashPin(pin, salt, iterations) {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256);
+    return toB64(bits);
+  }
+
+  async function savePin(pin) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const hash = await hashPin(pin, salt, ITERATIONS);
+    return writeJson(PIN_KEY, { v: 1, salt: toB64(salt), hash, iterations: ITERATIONS, length: pin.length });
+  }
+
+  async function checkPin(pin) {
+    const record = getPinRecord();
+    if (!record) return true;
+    if (!pin) return false;
+    const hash = await hashPin(pin, fromB64(record.salt), record.iterations);
+    return hash === record.hash;
+  }
+
+  // ---------- wrong-attempt limit ----------
+  function lockoutRemaining() {
+    const attempts = readJson(ATTEMPTS_KEY);
+    return attempts?.until ? Math.max(0, attempts.until - Date.now()) : 0;
+  }
+
+  function recordFailure() {
+    const attempts = readJson(ATTEMPTS_KEY) || { count: 0 };
+    attempts.count = (attempts.count || 0) + 1;
+    if (attempts.count >= MAX_ATTEMPTS) {
+      attempts.count = 0;
+      attempts.until = Date.now() + LOCKOUT_MS;
+    }
+    writeJson(ATTEMPTS_KEY, attempts);
+    return attempts;
+  }
+
+  // ---------- lock screen ----------
+  function setError(id, message) {
+    $(id).textContent = message;
+  }
+
+  let lockoutTimer = null;
+  function updateLockout() {
+    clearTimeout(lockoutTimer);
+    const ms = lockoutRemaining();
+    const input = $('lockPin');
+    const button = $('lockSubmit');
+    if (ms > 0) {
+      input.disabled = true;
+      button.disabled = true;
+      setError('lockError', `Too many attempts. Try again in ${Math.ceil(ms / 1000)}s.`);
+      lockoutTimer = setTimeout(updateLockout, 1000);
+    } else if (input.disabled) {
+      input.disabled = false;
+      button.disabled = false;
+      setError('lockError', '');
+      input.focus();
+    }
+  }
+
+  function lock() {
+    if (!hasPin()) return;
+    document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+    root.classList.add('locked');
+    $('lockPin').value = '';
+    setError('lockError', '');
+    updateLockout();
+    setTimeout(() => { if (!$('lockPin').disabled) $('lockPin').focus(); }, 50);
+  }
+
+  function unlock() {
+    removeKey(ATTEMPTS_KEY);
+    root.classList.remove('locked');
+    $('lockPin').blur();
+  }
+
+  let checking = false;
+  async function tryUnlock() {
+    const input = $('lockPin');
+    const pin = input.value.trim();
+    if (checking || !pin || lockoutRemaining() > 0) return;
+    checking = true;
+    try {
+      if (await checkPin(pin)) {
+        unlock();
+        return;
+      }
+      const attempts = recordFailure();
+      input.value = '';
+      const card = $('lockForm');
+      card.classList.remove('shake');
+      void card.offsetWidth; // restart the shake animation
+      card.classList.add('shake');
+      if (lockoutRemaining() > 0) {
+        updateLockout();
+      } else {
+        const left = MAX_ATTEMPTS - attempts.count;
+        setError('lockError', `Wrong PIN. ${left} ${left === 1 ? 'try' : 'tries'} left.`);
+      }
+    } finally {
+      checking = false;
+    }
+  }
+
+  $('lockForm').addEventListener('submit', event => {
+    event.preventDefault();
+    tryUnlock();
+  });
+
+  // Unlock automatically once the full PIN has been typed.
+  $('lockPin').addEventListener('input', event => {
+    event.target.value = event.target.value.replace(/\D/g, '');
+    const length = getPinRecord()?.length;
+    if (length && event.target.value.length === length) tryUnlock();
+  });
+
+  $('lockForgot').addEventListener('click', () => {
+    const confirmed = confirm(
+      'Forgot your PIN?\n\n' +
+      'This removes the PIN AND erases all dashboard data on this device. ' +
+      'You can restore it afterwards with Import Backup.\n\nErase and continue?'
+    );
+    if (!confirmed) return;
+    api.wiping = true;
+    try {
+      Object.keys(localStorage)
+        .filter(key => DATA_KEY_PREFIXES.some(prefix => key.startsWith(prefix)))
+        .forEach(removeKey);
+    } catch { /* ignore */ }
+    location.reload();
+  });
+
+  // ---------- auto-lock ----------
+  let hiddenAt = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      hiddenAt = Date.now();
+    } else if (hiddenAt && Date.now() - hiddenAt > AUTO_LOCK_MS) {
+      lock();
+    }
+  });
+
+  // iPhone/Safari can restore a page from memory without reloading it.
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) lock();
+  });
+
+  // ---------- Set / change / remove PIN ----------
+  function updatePinButtons() {
+    const on = hasPin();
+    $('pinBtn').textContent = on ? 'Change PIN' : 'Set PIN';
+    $('lockNowBtn').hidden = !on;
+  }
+
+  function openPinDialog() {
+    if (!cryptoAvailable()) {
+      alert('The PIN lock only works when the app is opened from its web address (https://...).');
+      return;
+    }
+    const on = hasPin();
+    $('pinDialogTitle').textContent = on ? 'Change or remove PIN' : 'Set a PIN';
+    $('pinDialogText').textContent = on
+      ? 'Enter your current PIN, then either choose a new one or remove the PIN.'
+      : 'Choose a 4–6 digit PIN. The app will ask for it when it opens. If you forget it, the data on this device has to be erased, so keep a backup.';
+    $('pinCurrentWrap').hidden = !on;
+    $('pinRemove').hidden = !on;
+    ['pinCurrent', 'pinNew', 'pinConfirm'].forEach(id => { $(id).value = ''; });
+    setError('pinDialogError', '');
+    $('pinDialog').showModal();
+    (on ? $('pinCurrent') : $('pinNew')).focus();
+  }
+
+  function closePinDialog(message) {
+    $('pinDialog').close();
+    updatePinButtons();
+    if (message && typeof window.showToast === 'function') window.showToast(message);
+  }
+
+  $('pinBtn').addEventListener('click', openPinDialog);
+  $('lockNowBtn').addEventListener('click', () => lock());
+  $('pinCancel').addEventListener('click', () => $('pinDialog').close());
+
+  ['pinCurrent', 'pinNew', 'pinConfirm'].forEach(id => {
+    $(id).addEventListener('input', event => {
+      event.target.value = event.target.value.replace(/\D/g, '');
+    });
+  });
+
+  $('pinDialogForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const on = hasPin();
+    const current = $('pinCurrent').value.trim();
+    const next = $('pinNew').value.trim();
+    const confirmNext = $('pinConfirm').value.trim();
+
+    if (on && !(await checkPin(current))) return setError('pinDialogError', 'Current PIN is wrong.');
+    if (!isValidPin(next)) return setError('pinDialogError', 'New PIN must be 4 to 6 digits.');
+    if (next !== confirmNext) return setError('pinDialogError', "The two new PINs don't match.");
+    if (!(await savePin(next))) return setError('pinDialogError', 'Could not save the PIN on this device.');
+    closePinDialog(on ? 'PIN changed' : 'PIN set');
+  });
+
+  $('pinRemove').addEventListener('click', async () => {
+    if (!(await checkPin($('pinCurrent').value.trim()))) {
+      return setError('pinDialogError', 'Enter your current PIN to remove it.');
+    }
+    removeKey(PIN_KEY);
+    removeKey(ATTEMPTS_KEY);
+    closePinDialog('PIN removed');
+  });
+
+  // ---------- start ----------
+  updatePinButtons();
+  if (hasPin()) {
+    lock();
+  } else {
+    root.classList.remove('locked');
+  }
+})();

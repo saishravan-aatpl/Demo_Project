@@ -145,6 +145,8 @@ function normalizeState(data) {
 }
 
 function saveState(show = true) {
+  // Don't write anything back while "Forgot PIN" is erasing this device's data.
+  if (window.dashboardLock?.wiping) return false;
   if (!storageAvailable) {
     updateSaveStatus('Local autosave is blocked. Use Export Backup.', true);
     if (show) showToast('Autosave blocked');

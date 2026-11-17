@@ -20,8 +20,24 @@
   <meta name="apple-mobile-web-app-title" content="Dashboard" />
 
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- If a PIN is set, hide the dashboard before anything is drawn on screen -->
+  <script>
+    try { if (localStorage.getItem('officeDailyDashboard.pin')) document.documentElement.classList.add('locked'); } catch (e) {}
+  </script>
 </head>
 <body>
+  <div class="lock-screen" id="lockScreen">
+    <form class="lock-card" id="lockForm" autocomplete="off">
+      <img src="icons/icon.svg" alt="" class="lock-icon" />
+      <h2>Enter PIN</h2>
+      <input id="lockPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" aria-label="PIN" />
+      <div class="lock-error" id="lockError" role="alert"></div>
+      <button type="submit" id="lockSubmit">Unlock</button>
+      <button type="button" class="lock-forgot" id="lockForgot">Forgot PIN?</button>
+    </form>
+  </div>
+
   <main class="app">
     <header>
       <section class="top-panel">
@@ -102,6 +118,8 @@
             <button class="btn-secondary" id="exportBtn" type="button">Export Backup</button>
             <button class="btn-secondary" id="importBtn" type="button">Import Backup</button>
             <input type="file" id="importFile" accept="application/json" hidden />
+            <button class="btn-secondary" id="pinBtn" type="button">Set PIN</button>
+            <button class="btn-secondary" id="lockNowBtn" type="button" hidden>Lock now</button>
           </div>
           <div class="save-status" id="saveStatus">Local save initializing...</div>
         </section>
@@ -111,6 +129,28 @@
 
   <div class="toast" id="toast">Saved</div>
 
+  <dialog class="pin-dialog" id="pinDialog">
+    <form id="pinDialogForm" autocomplete="off">
+      <h2 id="pinDialogTitle">Set a PIN</h2>
+      <p class="subtle" id="pinDialogText"></p>
+      <div id="pinCurrentWrap">
+        <label for="pinCurrent">Current PIN</label>
+        <input id="pinCurrent" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" />
+      </div>
+      <label for="pinNew">New PIN (4–6 digits)</label>
+      <input id="pinNew" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" />
+      <label for="pinConfirm">Type the new PIN again</label>
+      <input id="pinConfirm" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" />
+      <div class="lock-error" id="pinDialogError" role="alert"></div>
+      <div class="pin-dialog-actions">
+        <button type="button" class="btn-danger" id="pinRemove">Remove PIN</button>
+        <button type="button" class="btn-secondary" id="pinCancel">Cancel</button>
+        <button type="submit">Save PIN</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="lock.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

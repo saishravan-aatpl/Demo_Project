@@ -4,12 +4,13 @@
 // Strategy: "network first". Always try to fetch the latest version; if there is
 // no internet, fall back to the saved copy. Bump CACHE_VERSION when files change.
 
-const CACHE_VERSION = 'dashboard-v1';
+const CACHE_VERSION = 'dashboard-v2';
 const APP_FILES = [
   './',
   'index.html',
   'styles.css',
   'app.js',
+  'lock.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'icons/icon-192.png',
