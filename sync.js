@@ -30,9 +30,16 @@
   const configured = Boolean(config.supabaseUrl && config.supabaseKey && window.supabase?.createClient && app && window.DashboardMerge);
   if (!configured) {
     $('syncPanel').hidden = true;
+    document.documentElement.classList.remove('needs-auth');
     window.dashboardSync = noop;
     return;
   }
+
+  // "local" = this device was chosen to be used without an account.
+  const MODE_KEY = 'officeDailyDashboard.mode';
+  // What to clear when someone signs out: the dashboard and sync info, not the device's PIN.
+  const KEEP_ON_SIGN_OUT = ['officeDailyDashboard.pin', 'officeDailyDashboard.pinAttempts', 'officeDailyDashboard.unlock'];
+  const isOfflineMode = () => { try { return localStorage.getItem(MODE_KEY) === 'local'; } catch { return false; } };
 
   const { merge } = window.DashboardMerge;
   const sb = window.supabase.createClient(config.supabaseUrl, config.supabaseKey, {
@@ -216,13 +223,34 @@
   // ---------- sign in / out ----------
   const appUrl = location.origin + location.pathname;
 
+  function showGate(show) {
+    document.documentElement.classList.toggle('needs-auth', show);
+    if (show) openAuth('signin', true);
+  }
+
+  let sessionChecked = false;
   function handleSession(session) {
     const nextUser = session?.user || null;
-    if ((nextUser?.id || null) === (user?.id || null)) return;   // e.g. a routine token refresh
+    const firstCheck = !sessionChecked;
+    sessionChecked = true;
+    if (!firstCheck && (nextUser?.id || null) === (user?.id || null)) return;   // e.g. a routine token refresh
     user = nextUser;
-    if (user && meta.userId !== user.id) {
-      meta = { userId: user.id };
-      writeMeta();
+    if (user) {
+      try { localStorage.removeItem(MODE_KEY); } catch { /* ignore */ }
+      if (meta.userId && meta.userId !== user.id) {
+        // Someone else used this device before: start from this person's own data only.
+        app.applyData(window.DashboardMerge.emptyData());
+        meta = { userId: user.id };
+        writeMeta();
+      } else if (meta.userId !== user.id) {
+        // First sign-in here (e.g. after offline use): what's on the device is added to the account.
+        meta = { userId: user.id };
+        writeMeta();
+      }
+      showGate(false);
+      if ($('signInDialog').open) $('signInDialog').close();
+    } else {
+      showGate(!isOfflineMode());
     }
     renderPanel();
     if (user) {
@@ -286,8 +314,16 @@
 
   let mode = 'signin';
 
-  function openAuth(nextMode) {
+  function openAuth(nextMode, inGate = document.documentElement.classList.contains('needs-auth')) {
     mode = nextMode;
+    const form = $('authForm');
+    if (inGate) {
+      if ($('signInDialog').open) $('signInDialog').close();
+      $('authGateSlot').appendChild(form);
+    } else {
+      $('signInDialog').appendChild(form);
+    }
+    $('authCancel').hidden = inGate;
     const m = MODES[mode];
     $('authTitle').textContent = m.title;
     $('authText').textContent = m.text;
@@ -299,7 +335,7 @@
     $('authError').textContent = '';
     $('authMessage').textContent = '';
     ['authToSignup', 'authToForgot', 'authToSignin'].forEach(id => { $(id).hidden = !m.links.includes(id); });
-    if (!$('signInDialog').open) $('signInDialog').showModal();
+    if (!inGate && !$('signInDialog').open) $('signInDialog').showModal();
     (m.email && !$('authEmail').value ? $('authEmail') : (m.password ? $('authPassword') : $('authEmail'))).focus();
   }
 
@@ -307,14 +343,29 @@
     const text = String(error?.message || error || '');
     if (/invalid login credentials/i.test(text)) return 'Wrong email or password.';
     if (/email not confirmed/i.test(text)) return 'Please click the confirmation link we emailed you first, then sign in.';
-    if (/signups? not allowed|signup is disabled/i.test(text)) return 'New accounts are turned off for this app.';
+    if (/signups? not allowed|signup is disabled/i.test(text)) return 'New accounts are turned off for this app. Ask the person who runs it.';
+    if (/database error saving new user|limited to company/i.test(text)) return 'Accounts are only for company email addresses. Use your work email.';
+    if (/not authorized|email address .* invalid/i.test(text)) return "We couldn't send an email to that address. Ask the person who runs the app to turn off email confirmation.";
+    if (/at least|weak password|password should/i.test(text)) return 'Choose a longer password (at least 8 characters).';
     if (/rate limit|too many/i.test(text)) return 'Too many attempts. Please wait a few minutes and try again.';
     if (/should be different/i.test(text)) return 'Choose a password different from your old one.';
     if (isNetworkError(error)) return 'No connection. Check your internet and try again.';
     return text || 'Something went wrong. Please try again.';
   }
 
-  $('syncSignInBtn').addEventListener('click', () => openAuth('signin'));
+  $('syncSignInBtn').addEventListener('click', () => openAuth('signin', false));
+  $('syncChangePassword').addEventListener('click', () => openAuth('newpassword', false));
+
+  // ---------- "use without an account" ----------
+  $('useOfflineBtn').addEventListener('click', () => $('offlineDialog').showModal());
+  $('offlineBack').addEventListener('click', () => $('offlineDialog').close());
+  $('offlineConfirm').addEventListener('click', () => {
+    try { localStorage.setItem(MODE_KEY, 'local'); } catch { /* ignore */ }
+    $('offlineDialog').close();
+    showGate(false);
+    renderPanel();
+    toast('Offline mode: data stays on this device');
+  });
   $('authCancel').addEventListener('click', () => $('signInDialog').close());
   $('authToSignup').addEventListener('click', () => openAuth('signup'));
   $('authToForgot').addEventListener('click', () => openAuth('forgot'));
@@ -368,13 +419,20 @@
   });
 
   $('syncSignOut').addEventListener('click', async () => {
-    const confirmed = confirm('Sign out on this device?\n\nYour dashboard stays on this device but will stop syncing until you sign in again.');
-    if (!confirmed) return;
+    if (!confirm('Sign out on this device?\n\nYour dashboard is removed from this device. It stays safe in your account; sign in again to get it back.')) return;
+    if (hasLocalChanges()) {
+      await sync();
+      if (hasLocalChanges() && !confirm("Some recent changes haven't reached your account yet (you may be offline).\n\nSign out anyway and lose them?")) return;
+    }
     unsubscribe();
-    await sb.auth.signOut({ scope: 'local' });   // only this device
-    meta = {};
-    writeMeta();
-    toast('Signed out');
+    window.dashboardLock && (window.dashboardLock.wiping = true);   // stop the app saving while we clear
+    await sb.auth.signOut({ scope: 'local' }).catch(() => {});      // this device only
+    try {
+      Object.keys(localStorage)
+        .filter(key => (key.startsWith('officeDailyDashboard.') || key.startsWith('officeProjectDashboard.') || key.startsWith('sb-')) && !KEEP_ON_SIGN_OUT.includes(key))
+        .forEach(key => localStorage.removeItem(key));
+    } catch { /* ignore */ }
+    location.reload();
   });
 
   // ---------- connection to app.js ----------

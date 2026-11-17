@@ -22,6 +22,7 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 | `config.js` | The two Supabase values sync needs (both safe to publish). |
 | `vendor/` | Supabase's official browser library (v2.117.3), kept in the repo so the app doesn't depend on another website. |
 | `supabase/setup.sql` | Creates the database table and its security rules. Run once in Supabase's SQL Editor. |
+| `supabase/company-only-signups.sql` | Optional: only allow accounts with your company's email domain; plus a snippet to reset a colleague's password. |
 | `.github/workflows/keep-supabase-awake.yml` | Runs every 3 days on GitHub so the free Supabase project never pauses. |
 | `tests/merge.test.js` | Automatic checks for the merge logic (`node tests/merge.test.js`). |
 | `manifest.webmanifest` | Tells phones the app's name, icon and colours so it can be installed. |
@@ -60,6 +61,15 @@ After 5 wrong tries there is a 30-second wait.
 It is a privacy screen for your own device, not encryption: it stops someone who
 picks up your unlocked phone or laptop. The PIN is stored only as a salted hash.
 **Forgot PIN** erases this device's dashboard data, so keep a backup.
+
+## Accounts
+
+- The app opens on a **sign-in screen**. Each person signs in with their own email and
+  password and sees only their own dashboard.
+- **Use without an account** is available too, with a warning: data then stays only on
+  that device, with no backup. Signing in later adds it to the account.
+- **Sign out** removes the dashboard from that device (it stays in the account), so the
+  next person on a shared device starts clean.
 
 ## Data and sync
 

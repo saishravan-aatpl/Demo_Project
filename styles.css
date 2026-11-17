@@ -1478,8 +1478,10 @@ html { scroll-padding-top: calc(var(--topbar-h, 0px) + 12px); }
   color: #374151;
   white-space: nowrap;
 }
-.sb-left[data-state="soon"] { background: #fef3c7; color: #92400e; }
-.sb-left[data-state="over"] { background: #fee2e2; color: var(--danger); }
+/* Last hour: inverted (dark) to draw the eye without adding a new colour.
+   Past leaving time: the same soft red the app uses for Delete. */
+.sb-left[data-state="soon"] { background: #111827; color: #fff; }
+.sb-left[data-state="over"] { background: var(--danger-bg); color: var(--danger); box-shadow: inset 0 0 0 1px #f3c4c0; }
 .sb-spacer { flex: 1; }
 .sb-view {
   font-size: 13px;
@@ -1539,3 +1541,69 @@ html { scroll-padding-top: calc(var(--topbar-h, 0px) + 12px); }
 }
 
 html.locked .slimbar, html.locked .slimbar-backdrop { display: none; }
+
+/* ------------------------------------------------------------------ */
+/* Sign-in screen and offline mode                                     */
+/* ------------------------------------------------------------------ */
+
+.auth-gate { display: none; }
+
+html.needs-auth .app,
+html.needs-auth .slimbar,
+html.needs-auth .slimbar-backdrop,
+html.needs-auth .toast,
+html.needs-auth .undo-toast { display: none; }
+
+html.needs-auth .auth-gate {
+  display: flex;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+
+.auth-gate-card {
+  width: min(420px, 100%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 26px 24px 18px;
+}
+
+.auth-gate-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.auth-gate-logo { width: 56px; height: 56px; border-radius: 13px; box-shadow: 0 4px 12px rgba(17, 24, 39, 0.10); }
+.auth-gate-name { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.auth-gate-brand .subtle { font-size: 13px; }
+
+#authGateSlot h2 { margin: 0 0 4px; font-size: 18px; }
+#authGateSlot label { margin-top: 12px; }
+#authGateSlot .pin-dialog-actions button[type="submit"] { width: 100%; }
+#authGateSlot .pin-dialog-actions { margin-top: 14px; }
+
+.auth-offline-link {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 4px 2px;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  text-align: center;
+}
+
+.warning-list { margin: 8px 0 10px; padding-left: 18px; font-size: 14px; line-height: 1.45; }
+.warning-list li { margin-bottom: 6px; }
+
+.offline-warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  border: 1px solid #f3c4c0;
+  color: #7a271a;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.sync-actions { display: flex; gap: 8px; flex-wrap: wrap; }

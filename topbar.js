@@ -54,8 +54,8 @@
 
   // ---------- copy the clock, time left and View into the bar ----------
   function minutesFrom(text) {
-    const match = /(\d+)h\s*(\d+)m/.exec(text);
-    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+    const match = /(?:(\d+)h\s*)?(\d+)m/.exec(text);
+    return match ? Number(match[1] || 0) * 60 + Number(match[2]) : null;
   }
 
   function syncTexts() {

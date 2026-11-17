@@ -9,8 +9,8 @@
   <!-- Makes the site installable as an app ("Add to Home Screen") -->
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#f3f4f6" />
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192" />
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32" />
 
   <!-- iPhone-specific app settings -->
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -20,7 +20,20 @@
   <meta name="apple-mobile-web-app-title" content="Workstack" />
 
   <link rel="stylesheet" href="styles.css" />
+  <script src="config.js"></script>
 
+  <!-- Decide what to show before anything is drawn:
+       - the sign-in screen, if sync is set up and nobody is signed in on this device
+         (and this device hasn't been switched to "use offline");
+       - the PIN lock, if a PIN is set and the last unlock has expired. -->
+  <script>
+    try {
+      var cfg = window.DASHBOARD_CONFIG || {};
+      var signedIn = Object.keys(localStorage).some(function (k) { return /^sb-.*-auth-token$/.test(k); });
+      var offline = localStorage.getItem('officeDailyDashboard.mode') === 'local';
+      if (cfg.supabaseUrl && cfg.supabaseKey && !signedIn && !offline) document.documentElement.classList.add('needs-auth');
+    } catch (e) {}
+  </script>
   <!-- If a PIN is set and the last unlock has expired, hide the dashboard before anything is drawn -->
   <script>
     try {
@@ -32,6 +45,21 @@
   </script>
 </head>
 <body>
+  <!-- Sign-in screen: shown first when nobody is signed in (see sync.js) -->
+  <div class="auth-gate" id="authGate">
+    <div class="auth-gate-card">
+      <div class="auth-gate-brand">
+        <img src="icons/icon.svg" alt="" class="auth-gate-logo" />
+        <div>
+          <div class="auth-gate-name">Workstack</div>
+          <div class="subtle">Your projects, tasks and follow-ups for the day.</div>
+        </div>
+      </div>
+      <div id="authGateSlot"></div>
+      <button type="button" class="link-btn auth-offline-link" id="useOfflineBtn">Use without an account (this device only)</button>
+    </div>
+  </div>
+
   <div class="lock-screen" id="lockScreen">
     <form class="lock-card" id="lockForm" autocomplete="off">
       <img src="icons/icon.svg" alt="" class="lock-icon" />
@@ -137,13 +165,16 @@
         <section class="sync-panel" id="syncPanel" hidden>
           <h2>Cloud Sync</h2>
           <div id="syncSignedOut">
-            <p class="subtle">Sign in to keep this dashboard the same on your phone and laptop.</p>
-            <button type="button" id="syncSignInBtn">Sign in to sync</button>
+            <p class="offline-warning"><strong>Offline mode.</strong> Your dashboard is only on this device and isn't backed up. Sign in to keep it safe and use it on your other devices.</p>
+            <button type="button" id="syncSignInBtn">Sign in</button>
           </div>
           <div id="syncSignedIn" hidden>
             <div class="sync-account" id="syncEmail"></div>
             <div class="sync-status" id="syncStatus" data-state="syncing">Syncing…</div>
-            <button class="btn-secondary btn-small" id="syncSignOut" type="button">Sign out</button>
+            <div class="sync-actions">
+              <button class="btn-secondary btn-small" id="syncChangePassword" type="button">Change password</button>
+              <button class="btn-secondary btn-small" id="syncSignOut" type="button">Sign out</button>
+            </div>
           </div>
         </section>
 
@@ -190,6 +221,23 @@
     </form>
   </dialog>
 
+  <dialog class="pin-dialog" id="offlineDialog">
+    <form method="dialog">
+      <h2>Use without an account?</h2>
+      <p class="subtle">You can, but please know what that means:</p>
+      <ul class="warning-list">
+        <li><strong>Only on this device.</strong> Nothing syncs to your phone or laptop.</li>
+        <li><strong>No backup.</strong> Clearing browser data, removing the app from your home screen, or losing the device deletes everything.</li>
+        <li><strong>On iPhone,</strong> Safari can clear data of sites you haven't opened for a few weeks.</li>
+      </ul>
+      <p class="subtle">You can sign in any time later; what you've added here is then saved to your account. Until then, use <strong>Export Backup</strong> now and then.</p>
+      <div class="pin-dialog-actions">
+        <button type="button" class="btn-secondary" id="offlineBack">Back to sign in</button>
+        <button type="button" id="offlineConfirm">I understand, use offline</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog class="pin-dialog" id="signInDialog">
     <form id="authForm" novalidate>
       <h2 id="authTitle">Sign in to sync</h2>
@@ -216,7 +264,6 @@
     </form>
   </dialog>
 
-  <script src="config.js"></script>
   <script src="vendor/supabase-js-2.117.3.js"></script>
   <script src="merge.js"></script>
   <script src="lock.js"></script>

@@ -4,7 +4,7 @@
 // Strategy: "network first". Always try to fetch the latest version; if there is
 // no internet, fall back to the saved copy. Bump CACHE_VERSION when files change.
 
-const CACHE_VERSION = 'dashboard-v10';
+const CACHE_VERSION = 'dashboard-v11';
 const APP_FILES = [
   './',
   'index.html',
@@ -20,6 +20,8 @@ const APP_FILES = [
   'sync.js',
   'manifest.webmanifest',
   'icons/icon.svg',
+  'icons/favicon.svg',
+  'icons/favicon-32.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png'

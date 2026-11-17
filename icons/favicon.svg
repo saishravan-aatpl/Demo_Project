@@ -1,0 +1,13 @@
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Workstack tab icon: a simplified, light line drawing of the logo.
+       Dark ink on light browser tabs, light ink on dark tabs. -->
+  <style>
+    .ink { stroke: #111827; }
+    .soft { stroke: #b6bcc6; }
+    @media (prefers-color-scheme: dark) { .ink { stroke: #f3f4f6; } .soft { stroke: #6b7280; } }
+  </style>
+  <path class="soft" d="M10 6.5 H22" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <path class="soft" d="M7.5 10.5 H24.5" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <rect class="ink" x="5" y="14" width="22" height="13" rx="3.5" stroke-width="2.4" fill="none"/>
+  <path class="ink" d="M11 20.5 L14.5 23.5 L21 17.5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

@@ -256,6 +256,11 @@ function populateLeaveTimeOptions() {
   // Native time input is used for easier editing. Step is 5 minutes.
 }
 
+// "2h 15m", or just "40m" when under an hour.
+function formatDuration(hours, minutes) {
+  return hours ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
 function updateRemainingTime() {
   const value = state.leaveTime;
   if (!value) {
@@ -276,7 +281,7 @@ function updateRemainingTime() {
   const leavingText = formatTime12(h, m);
 
   if (diffMs >= 0) {
-    els.remainingTime.textContent = `${hours}h ${minutes}m`;
+    els.remainingTime.textContent = formatDuration(hours, minutes);
     if (absMinutes <= 60) {
       els.remainingMessage.textContent = `Wrap-up mode before ${leavingText}.`;
     } else if (absMinutes <= 180) {
@@ -285,7 +290,7 @@ function updateRemainingTime() {
       els.remainingMessage.textContent = `Work window active until ${leavingText}.`;
     }
   } else {
-    els.remainingTime.textContent = `+${hours}h ${minutes}m`;
+    els.remainingTime.textContent = `+${formatDuration(hours, minutes)}`;
     els.remainingMessage.textContent = `Past planned leaving time of ${leavingText}.`;
   }
 }
