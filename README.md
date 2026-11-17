@@ -16,7 +16,7 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 | `lock.js` | Optional PIN lock screen for this device. |
 | `drag.js` | Smooth drag-to-reorder for tasks and projects (mouse and touch). |
 | `menu.js` | The small pop-up menus behind the ⋯ buttons. |
-| `topbar.js` | The header that shrinks into a slim bar as you scroll. |
+| `topbar.js` | The slim bar that slides in when you scroll, and pulling the header down from it. |
 | `sync.js` | Cloud sync: sign-in (email + password), saving, live updates, offline catch-up. |
 | `merge.js` | Combines changes made on two devices at the same time. |
 | `config.js` | The two Supabase values sync needs (both safe to publish). |
@@ -31,8 +31,9 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 
 ## Using it
 
-- **Header:** full size at the top. As you scroll it shrinks into a slim bar
-  (time, time left, View). Tap the bar to open it again; scrolling closes it.
+- **Header:** full size at the top, scrolls away normally. Further down, a slim bar
+  (time, time left, View) slides in. Tap it to pull the full header down; scroll,
+  tap outside or tap ⌃ to put it away.
 
 - **Edit a task:** tap or click its name; Enter saves, Escape cancels.
 - **Move a task:** on a phone, press and hold it, then drag (into any project, even a

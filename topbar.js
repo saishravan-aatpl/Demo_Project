@@ -1,135 +1,74 @@
-// Shrinking header
-// ----------------
-// The header is full size at the top of the page. As you scroll down, its content
-// moves up with your finger; the clock and "time left" ride up with their cards,
-// shrinking as they go, until they dock into a slim bar at the top, which then stays.
-// Tap the slim bar to open the full header again; scrolling a little closes it.
+// Header and slim bar
+// -------------------
+// - The full header is ordinary page content: it scrolls away with the page.
+// - Once its time cards have scrolled out of view, a slim bar slides down from the
+//   top (time, time left, current View, and an arrow). It slides away again when
+//   you scroll back up to the header. Nothing is ever shown twice.
+// - Tapping the slim bar slides the REAL header down from the top, over the page.
+//   Scrolling, tapping outside, Escape or its ▴ button slide it back up.
 //
-// How: the header is fixed to the top of the screen, and a "spacer" of the same full
-// height sits in the page under it. One number, --p (0 = full, 1 = slim), drives
-// every size, fade and movement in styles.css. Scrolling sets --p; tapping animates it.
+// Smoothness: the browser tells us when the time cards enter or leave the screen
+// (IntersectionObserver), and the sliding itself is a CSS transition, so nothing is
+// recalculated on every scroll step. That's what keeps it steady on iPhone.
 
 (() => {
   const $ = id => document.getElementById(id);
-  const header = $('topbar');
-  if (!header) return;
+  const header = $('pageHeader');
+  const bar = $('slimbar');
+  if (!header || !bar) return;
 
   const root = document.documentElement;
-  const inner = $('topbarInner');
-  const full = $('topbarFull');
-  const compact = $('topbarCompact');
-  const spacer = $('topbarSpacer');
-  const backdrop = $('topbarBackdrop');
+  const placeholder = $('headerPlaceholder');
+  const backdrop = $('slimbarBackdrop');
+  const toggle = $('slimbarToggle');
+  const CLOSE_AFTER_SCROLL = 40;
+  const SLIDE_MS = 280;
 
-  // Pairs that glide between a big position (in the full header) and a small one (in the slim bar).
-  const morphs = [
-    { el: $('morphClock'), from: $('currentTime'), to: $('tbClockSlot') },
-    { el: $('morphLeft'), from: $('remainingTime'), to: $('tbLeftSlot') }
-  ];
+  let barShown = false;
+  let popped = false;          // the full header is pulled down over the page
+  let poppedAt = 0;
+  let closeTimer = null;
 
-  const CLOSE_AFTER_SCROLL = 30;   // px of scrolling that closes a header you opened by tapping
-  let fullHeight = 0;
-  let compactHeight = 56;
-  let range = 1;
-  let dockSpeed = 1;               // how much faster than --p the clock reaches the bar
-  let current = 0;
-  let opened = false;              // opened by tapping while scrolled down
-  let openedAt = 0;
-  let ticking = false;
-  let animTimer = null;
-
-  // ---------- applying a position between full (0) and slim (1) ----------
-  function setProgress(p) {
-    current = p;
-    header.style.setProperty('--p', p.toFixed(4));
-    header.classList.toggle('is-collapsing', p > 0.001);
-    header.classList.toggle('is-compact', p * dockSpeed > 0.5);
-    root.style.setProperty('--topbar-h', `${Math.round(fullHeight - (fullHeight - compactHeight) * p)}px`);
-    if (p > 0.001 && typeof closePersonFilterDropdown === 'function') closePersonFilterDropdown();
+  // ---------- slim bar: show when the time cards are hidden ----------
+  function setBar(show) {
+    if (show === barShown) return;
+    barShown = show;
+    bar.classList.toggle('shown', show);
+    bar.setAttribute('aria-hidden', show ? 'false' : 'true');
+    toggle.tabIndex = show ? 0 : -1;
+    root.style.setProperty('--topbar-h', show ? `${bar.offsetHeight}px` : '0px');
+    if (!show && popped) close(true);
   }
 
-  function animateTo(p) {
-    header.classList.add('animating');
-    setProgress(p);
-    clearTimeout(animTimer);
-    animTimer = setTimeout(() => header.classList.remove('animating'), 280);
+  const barHeight = () => bar.querySelector('.slimbar-surface').offsetHeight || 56;
+  let observer = null;
+  function observe() {
+    observer?.disconnect();
+    observer = new IntersectionObserver(([entry]) => {
+      if (popped) return;
+      // Hidden above the bar = scrolled past; below the screen = not relevant.
+      setBar(!entry.isIntersecting && entry.boundingClientRect.top < barHeight());
+    }, { rootMargin: `-${barHeight()}px 0px 0px 0px`, threshold: 0 });
+    observer.observe(header.querySelector('.time-cards'));
   }
 
-  const scrollProgress = () => Math.min(1, Math.max(0, window.scrollY) / range);
-
-  // ---------- measuring (on load, resize, and when content changes) ----------
-  function relativeRect(el) {
-    const r = el.getBoundingClientRect();
-    const base = inner.getBoundingClientRect();
-    return { left: r.left - base.left, top: r.top - base.top };
-  }
-
-  function measure() {
-    header.classList.remove('animating');                 // no half-finished animation while measuring
-    header.style.setProperty('--p', '0');                 // measure in the full layout
-
-    fullHeight = Math.ceil(full.offsetTop + full.offsetHeight);
-    compactHeight = Math.ceil(compact.offsetTop + compact.offsetHeight);
-    range = Math.max(1, fullHeight - compactHeight);
-
-    morphs.forEach(({ el, from, to }, index) => {
-      const a = relativeRect(from);
-      const b = relativeRect(to);
-      // It travels up with the page until it reaches the bar: that takes (a.top - b.top) px
-      // of the total `range` px of scrolling, so it moves `k` times faster than --p.
-      const k = range / Math.max(1, a.top - b.top);
-      el.style.setProperty('--k', k.toFixed(4));
-      if (index === 0) {
-        dockSpeed = k;
-        header.style.setProperty('--k', k.toFixed(4));
-      }
-      const bigSize = parseFloat(getComputedStyle(from).fontSize);
-      const smallSize = parseFloat(getComputedStyle(to).fontSize);
-      el.style.fontSize = `${bigSize}px`;
-      el.style.setProperty('--x', `${a.left}px`);
-      el.style.setProperty('--y', `${a.top}px`);
-      el.style.setProperty('--dx', `${b.left - a.left}px`);
-      el.style.setProperty('--dy', `${b.top - a.top}px`);
-      el.style.setProperty('--s', (smallSize / bigSize).toFixed(4));
-    });
-
-    header.style.setProperty('--hf', `${fullHeight}px`);
-    header.style.setProperty('--hc', `${compactHeight}px`);
-    root.style.setProperty('--topbar-compact', `${compactHeight}px`);
-    spacer.style.height = `${fullHeight}px`;
-    setProgress(opened ? 0 : scrollProgress());
-  }
-
-  let measureQueued = false;
-  function scheduleMeasure() {
-    if (measureQueued) return;
-    measureQueued = true;
-    requestAnimationFrame(() => { measureQueued = false; measure(); });
-  }
-
-  // ---------- copy the clock, time left and View into the slim bar ----------
+  // ---------- copy the clock, time left and View into the bar ----------
   function minutesFrom(text) {
     const match = /(\d+)h\s*(\d+)m/.exec(text);
     return match ? Number(match[1]) * 60 + Number(match[2]) : null;
   }
 
   function syncTexts() {
-    const clock = $('currentTime').textContent;
     const left = $('remainingTime').textContent;
     const over = left.startsWith('+');
     const minutes = minutesFrom(left);
-    const state = minutes === null ? 'none' : over ? 'over' : minutes <= 60 ? 'soon' : 'ok';
-
-    $('morphClock').textContent = clock;
-    $('tbClockSlot').textContent = clock;
-    $('morphLeft').textContent = left;
-    $('tbLeftSlot').textContent = left;
-    $('tbLeftWord').textContent = over ? 'over' : 'left';
-    $('tbLeft').dataset.state = state;
-    $('morphLeft').dataset.state = state;
-    $('tbDate').textContent = new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-    $('tbView').textContent = $('personSelectLabel').textContent || 'View: All';
-    scheduleMeasure();
+    const leftEl = $('sbLeft');
+    $('sbClock').textContent = $('currentTime').textContent;
+    $('sbDate').textContent = new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+    leftEl.textContent = minutes === null ? '' : `${left.replace('+', '')} ${over ? 'over' : 'left'}`;
+    leftEl.hidden = minutes === null;
+    leftEl.dataset.state = over ? 'over' : minutes <= 60 ? 'soon' : 'ok';
+    $('sbViewLabel').textContent = $('personSelectLabel').textContent || 'View: All';
   }
 
   const watch = new MutationObserver(syncTexts);
@@ -137,48 +76,66 @@
     watch.observe($(id), { childList: true, characterData: true, subtree: true });
   });
 
-  // ---------- open / close by tapping ----------
+  // Picking a person from the popped-down header: show their list (it sits just
+  // under the header near the top of the page).
+  let lastView = $('personSelectLabel').textContent;
+  new MutationObserver(() => {
+    const view = $('personSelectLabel').textContent;
+    if (view === lastView) return;          // redrawn with the same text: nothing was picked
+    lastView = view;
+    if (!popped) return;
+    const results = $('peopleResults');
+    close();
+    if (results.classList.contains('open')) {
+      setTimeout(() => results.scrollIntoView({ behavior: 'smooth', block: 'start' }), SLIDE_MS);
+    }
+  }).observe($('personSelectLabel'), { childList: true, characterData: true, subtree: true });
+
+  // ---------- pop the real header down / back up ----------
   function open() {
-    if (current < 0.01) return;
-    opened = true;
-    openedAt = window.scrollY;
-    header.classList.add('is-open');
+    if (popped || !barShown) return;
+    popped = true;
+    poppedAt = window.scrollY;
+    clearTimeout(closeTimer);
+    placeholder.style.height = `${header.offsetHeight}px`;   // keeps the page from jumping
+    header.classList.add('floating');
+    void header.offsetHeight;                               // start from "above the screen"
+    header.classList.add('dropped');
+    bar.classList.add('covered');
     backdrop.classList.add('show');
-    animateTo(0);
   }
 
-  function close() {
-    if (!opened) return;
-    opened = false;
-    header.classList.remove('is-open');
+  function close(instant = false) {
+    if (!popped) return;
+    popped = false;
+    if (header.contains(document.activeElement)) document.activeElement.blur();
+    header.classList.remove('dropped');
+    bar.classList.remove('covered');
     backdrop.classList.remove('show');
-    animateTo(scrollProgress());
+    const finish = () => {
+      header.classList.remove('floating');
+      placeholder.style.height = '0px';
+    };
+    clearTimeout(closeTimer);
+    if (instant) finish();
+    else closeTimer = setTimeout(finish, SLIDE_MS);
   }
 
-  compact.addEventListener('click', open);
-  backdrop.addEventListener('click', close);
+  toggle.addEventListener('click', open);
+  $('headerCollapse').addEventListener('click', () => close());
+  backdrop.addEventListener('click', () => close());
   document.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
 
-  // ---------- scrolling ----------
-  function onFrame() {
-    ticking = false;
-    if (opened) {
-      // Keep it open while you're typing in it (the phone keyboard can scroll the page).
-      if (Math.abs(window.scrollY - openedAt) > CLOSE_AFTER_SCROLL && !header.contains(document.activeElement)) close();
-      return;
-    }
-    if (header.contains(document.activeElement) && current < 0.01) return;
-    setProgress(scrollProgress());
-  }
-
   window.addEventListener('scroll', () => {
-    if (!ticking) { ticking = true; requestAnimationFrame(onFrame); }
+    if (!popped) return;
+    // Keep it down while you're typing in it (the phone keyboard can scroll the page).
+    if (header.contains(document.activeElement)) { poppedAt = window.scrollY; return; }
+    if (Math.abs(window.scrollY - poppedAt) > CLOSE_AFTER_SCROLL) close();
   }, { passive: true });
-  window.addEventListener('resize', scheduleMeasure);
-  new ResizeObserver(scheduleMeasure).observe(full);
-  document.fonts?.ready.then(scheduleMeasure);
+
+  window.addEventListener('resize', () => { if (!popped) observe(); });
 
   syncTexts();
-  measure();
-  window.dashboardTopbar = { open, close, measure, progress: () => current };
+  observe();
+  window.dashboardTopbar = { open, close, isBarShown: () => barShown, isOpen: () => popped };
 })();

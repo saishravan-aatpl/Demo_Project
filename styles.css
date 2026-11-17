@@ -1378,95 +1378,85 @@ body.is-dragging { -webkit-user-select: none; user-select: none; }
 html.locked .undo-toast { display: none; }
 
 /* ------------------------------------------------------------------ */
-/* Shrinking header (see topbar.js)                                    */
-/* --p goes from 0 (full header) to 1 (slim bar) as you scroll.        */
+/* Header + slim bar (see topbar.js)                                   */
 /* ------------------------------------------------------------------ */
 
-@property --p {
-  syntax: '<number>';
-  inherits: true;
-  initial-value: 0;
+html { scroll-padding-top: calc(var(--topbar-h, 0px) + 12px); }
+
+/* The full header, in the page as normal */
+.page-header { margin-bottom: 0; display: flow-root; }   /* keep inner spacing inside the header */
+.page-header > section:last-of-type { margin-bottom: 18px; }
+.header-collapse { display: none; }
+
+/* ...or pulled down over the page from the slim bar */
+.page-header.floating {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 950;
+  max-width: 1156px;
+  margin: 0 auto;
+  padding: max(14px, calc(env(safe-area-inset-top) + 8px)) max(18px, env(safe-area-inset-right)) 8px max(18px, env(safe-area-inset-left));
+  background: var(--bg);
+  border-radius: 0 0 22px 22px;
+  box-shadow: 0 18px 40px rgba(17, 24, 39, 0.18);
+  max-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transform: translateY(-105%);
+  transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+.page-header.floating.dropped { transform: translateY(0); }
+.page-header.floating .header-collapse {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 26px;
+  margin: 0 auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+}
+.page-header.floating .header-collapse:hover { transform: none; background: #f3f4f6; }
+.page-header.floating > section:last-of-type { margin-bottom: 10px; }
 
-.app { padding-top: 0 !important; }
-html { scroll-padding-top: calc(var(--topbar-compact, 60px) + 12px); }
+.page-header-placeholder { height: 0; }
 
-.topbar {
-  --p: 0;
+/* The slim bar */
+.slimbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 900;
-  margin: 0;
-  height: calc(var(--hf, 400px) - (var(--hf, 400px) - var(--hc, 56px)) * var(--p));
+  transform: translateY(-110%);
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   pointer-events: none;
 }
-.topbar.animating { transition: --p 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.slimbar.shown { transform: translateY(0); pointer-events: auto; }
+.slimbar.shown.covered { transform: translateY(-110%); }
 
-/* --k: how fast the clock docks (set by topbar.js). --dock = 0..1, how docked it is. */
-.topbar { --dock: clamp(0, var(--p) * var(--k, 1), 1); }
-
-/* The slim bar's white background: appears as the clock docks, covers what scrolls under it */
-.topbar-bg {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: var(--hc, 56px);
-  z-index: 1;
+.slimbar-surface {
   background: rgba(255, 255, 255, 0.97);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 6px 18px rgba(17, 24, 39, 0.08);
-  opacity: var(--dock);
+  padding-top: env(safe-area-inset-top);
 }
 
-/* When opened by tapping, the full header gets a background over the page */
-.topbar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--bg);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-.topbar.is-open::before { opacity: 1; }
-
-.topbar-inner {
-  position: relative;
-  max-width: 1120px;
-  height: 100%;
-  margin: 0 auto;
-  padding: max(26px, calc(env(safe-area-inset-top) + 10px)) max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left));
-}
-.topbar.is-collapsing .topbar-inner { overflow: hidden; }
-
-/* Full header: moves up exactly as far as you've scrolled, sliding under the bar */
-.topbar-full {
-  position: relative;
-  z-index: 0;
-  pointer-events: auto;
-  transform: translateY(calc(var(--p) * (var(--hc, 56px) - var(--hf, 400px))));
-}
-.topbar.is-compact .topbar-full { pointer-events: none; }
-.topbar-full > section:last-child { margin-bottom: 18px; }
-
-/* The big clock and time-left are drawn by the gliding copies instead */
-#currentTime, #remainingTime { visibility: hidden; }
-
-/* Slim bar: fades in during the second half */
-.topbar-compact {
-  position: absolute;
-  left: max(18px, env(safe-area-inset-left));
-  right: max(18px, env(safe-area-inset-right));
-  top: env(safe-area-inset-top);
-  height: 56px;
+.slimbar-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0;
+  width: 100%;
+  max-width: 1120px;
+  height: 56px;
+  margin: 0 auto;
+  padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left));
   border: none;
   border-radius: 0;
   background: transparent;
@@ -1474,27 +1464,12 @@ html { scroll-padding-top: calc(var(--topbar-compact, 60px) + 12px); }
   font-weight: 600;
   text-align: left;
   cursor: pointer;
-  z-index: 2;
-  opacity: clamp(0, (var(--dock) - 0.75) * 4, 1);   /* extras appear as the clock lands */
-  pointer-events: none;
 }
-.topbar-compact:hover { transform: none; }
-.topbar.is-compact .topbar-compact { pointer-events: auto; }
-.topbar.is-open .topbar-compact { pointer-events: none; }
+.slimbar-row:hover { transform: none; }
 
-.tb-clock-slot {
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  visibility: hidden;
-  white-space: nowrap;
-}
-.tb-date { font-size: 13px; color: var(--muted); font-weight: 500; white-space: nowrap; }
-.tb-left {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.sb-clock { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap; }
+.sb-date { font-size: 13px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.sb-left {
   font-size: 12px;
   font-weight: 800;
   padding: 4px 10px;
@@ -1503,11 +1478,10 @@ html { scroll-padding-top: calc(var(--topbar-compact, 60px) + 12px); }
   color: #374151;
   white-space: nowrap;
 }
-.tb-left-slot { font-size: 13px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; visibility: hidden; }
-.tb-left[data-state="soon"] { background: #fef3c7; color: #92400e; }
-.tb-left[data-state="over"] { background: #fee2e2; color: var(--danger); }
-.tb-spacer { flex: 1; }
-.tb-view {
+.sb-left[data-state="soon"] { background: #fef3c7; color: #92400e; }
+.sb-left[data-state="over"] { background: #fee2e2; color: var(--danger); }
+.sb-spacer { flex: 1; }
+.sb-view {
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
@@ -1515,12 +1489,13 @@ html { scroll-padding-top: calc(var(--topbar-compact, 60px) + 12px); }
   border-radius: 10px;
   padding: 6px 10px;
   background: #fff;
-  max-width: 40vw;
+  max-width: 38vw;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tb-chevron {
+.sb-chevron {
+  flex: none;
   width: 32px;
   height: 32px;
   display: grid;
@@ -1528,41 +1503,21 @@ html { scroll-padding-top: calc(var(--topbar-compact, 60px) + 12px); }
   border: 1px solid var(--border);
   border-radius: 9px;
   background: #fff;
-  font-size: 15px;
   color: #374151;
 }
 
-/* The gliding clock and time-left */
-.morph {
-  position: absolute;
-  left: var(--x, 0);
-  top: var(--y, 0);
-  transform-origin: 0 0;
-  --t: clamp(0, var(--p) * var(--k, 1), 1);     /* 0 = in its card, 1 = docked in the bar */
-  z-index: 3;
-  transform: translate(calc(var(--dx, 0px) * var(--t)), calc(var(--dy, 0px) * var(--t))) scale(calc(1 + (var(--s, 1) - 1) * var(--t)));
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  white-space: nowrap;
-  color: var(--text);
-  pointer-events: none;
-}
-#morphLeft[data-state="over"] { color: var(--danger); }
-#morphLeft[data-state="soon"] { color: #92400e; }
-
-.topbar-backdrop {
+.slimbar-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 899;
+  z-index: 940;
   background: rgba(17, 24, 39, 0.28);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
 }
-.topbar-backdrop.show { opacity: 1; pointer-events: auto; }
+.slimbar-backdrop.show { opacity: 1; pointer-events: auto; }
 
-/* "Tasks for <person>" list, now just under the header */
+/* "Tasks linked to <person>" list, just under the header */
 .results-panel {
   background: var(--card);
   border: 1px solid var(--border);
@@ -1571,19 +1526,16 @@ html { scroll-padding-top: calc(var(--topbar-compact, 60px) + 12px); }
   margin: 0 0 18px;
   padding: 14px 16px;
 }
-.people-results.results-panel { border-top: 1px solid var(--border); }
 
 /* Laptop: the right-hand column stays in view while you scroll */
 @media (min-width: 901px) {
-  .side-stack {
-    position: sticky;
-    top: calc(var(--topbar-compact, 56px) + 18px);
-  }
+  .side-stack { position: sticky; top: 74px; }
 }
 
 @media (max-width: 600px) {
-  .topbar-inner { padding-top: max(14px, calc(env(safe-area-inset-top) + 6px)); }
-  .tb-date { display: none; }
-  .tb-clock-slot { font-size: 17px; }
-  .topbar-compact { gap: 8px; }
+  .sb-date { display: none; }
+  .sb-clock { font-size: 17px; }
+  .slimbar-row { gap: 8px; }
 }
+
+html.locked .slimbar, html.locked .slimbar-backdrop { display: none; }

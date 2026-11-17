@@ -44,75 +44,72 @@
   </div>
 
   <main class="app">
-    <!-- Header: full size at the top of the page; shrinks smoothly into a slim bar
-         as you scroll (see topbar.js). Tap the slim bar to open it again. -->
-    <header class="topbar" id="topbar">
-      <div class="topbar-bg" aria-hidden="true"></div>
-      <div class="topbar-inner" id="topbarInner">
-        <div class="topbar-full" id="topbarFull">
-          <section class="top-panel">
-            <h1>Office Project Dashboard</h1>
-            <div class="time-cards">
-              <div class="now-card">
-                <strong id="currentTime">Time</strong>
-                <span class="subtle" id="todayDate">Today</span>
-              </div>
-              <div class="remaining">
-                <strong id="remainingTime">--</strong>
-                <span class="subtle" id="remainingMessage">Set your leaving time.</span>
-              </div>
-            </div>
-            <div class="leave-row">
-              <label for="leaveTime">Leaving for the day</label>
-              <input type="time" id="leaveTime" step="300" />
-              <span class="subtle" id="leaveHint">Visible time is shown above in AM/PM format.</span>
-              <button class="btn-secondary copy-summary-top" id="copySummaryBtn" type="button">Copy Summary</button>
-            </div>
-          </section>
-
-          <section class="control-card new-project-panel">
-            <form class="add-project-form" id="addProjectForm">
-              <input type="text" id="projectName" placeholder="New Project Title" autocomplete="off" aria-label="New Project Title" />
-              <button type="submit">Add Project</button>
-            </form>
-          </section>
-
-          <section class="people-panel control-card">
-            <div class="people-controls">
-              <div class="person-filter-wrap">
-                <div class="person-select" id="personSelect">
-                  <button class="person-select-button" id="personSelectButton" type="button" aria-haspopup="listbox" aria-expanded="false">
-                    <span class="person-select-label" id="personSelectLabel">All</span>
-                    <span class="person-select-count" id="personSelectCount"></span>
-                  </button>
-                  <div class="person-select-menu" id="personSelectMenu" role="listbox"></div>
-                </div>
-                <select id="personFilter" hidden></select>
-              </div>
-              <label class="open-only-wrap" for="peopleOpenOnly">
-                <input type="checkbox" id="peopleOpenOnly" />
-                Open only
-              </label>
-            </div>
-          </section>
+    <!-- Full header: part of the page, scrolls away normally. -->
+    <header class="page-header" id="pageHeader">
+      <section class="top-panel">
+        <h1>Office Project Dashboard</h1>
+        <div class="time-cards">
+          <div class="now-card">
+            <strong id="currentTime">Time</strong>
+            <span class="subtle" id="todayDate">Today</span>
+          </div>
+          <div class="remaining">
+            <strong id="remainingTime">--</strong>
+            <span class="subtle" id="remainingMessage">Set your leaving time.</span>
+          </div>
         </div>
+        <div class="leave-row">
+          <label for="leaveTime">Leaving for the day</label>
+          <input type="time" id="leaveTime" step="300" />
+          <span class="subtle" id="leaveHint">Visible time is shown above in AM/PM format.</span>
+          <button class="btn-secondary copy-summary-top" id="copySummaryBtn" type="button">Copy Summary</button>
+        </div>
+      </section>
 
-        <button class="topbar-compact" id="topbarCompact" type="button" aria-label="Show the full header">
-          <span class="tb-clock-slot" id="tbClockSlot"></span>
-          <span class="tb-date" id="tbDate"></span>
-          <span class="tb-left" id="tbLeft"><span class="tb-left-slot" id="tbLeftSlot"></span> <span id="tbLeftWord">left</span></span>
-          <span class="tb-spacer"></span>
-          <span class="tb-view" id="tbView">View: All</span>
-          <span class="tb-chevron" aria-hidden="true">⌄</span>
-        </button>
+      <section class="control-card new-project-panel">
+        <form class="add-project-form" id="addProjectForm">
+          <input type="text" id="projectName" placeholder="New Project Title" autocomplete="off" aria-label="New Project Title" />
+          <button type="submit">Add Project</button>
+        </form>
+      </section>
 
-        <!-- The clock and time-left glide between their big and small positions -->
-        <span class="morph" id="morphClock" aria-hidden="true"></span>
-        <span class="morph" id="morphLeft" aria-hidden="true"></span>
-      </div>
+      <section class="people-panel control-card">
+        <div class="people-controls">
+          <div class="person-filter-wrap">
+            <div class="person-select" id="personSelect">
+              <button class="person-select-button" id="personSelectButton" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <span class="person-select-label" id="personSelectLabel">All</span>
+                <span class="person-select-count" id="personSelectCount"></span>
+              </button>
+              <div class="person-select-menu" id="personSelectMenu" role="listbox"></div>
+            </div>
+            <select id="personFilter" hidden></select>
+          </div>
+          <label class="open-only-wrap" for="peopleOpenOnly">
+            <input type="checkbox" id="peopleOpenOnly" />
+            Open only
+          </label>
+        </div>
+      </section>
+      <button class="header-collapse" id="headerCollapse" type="button" aria-label="Hide the full header"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </header>
-    <div class="topbar-spacer" id="topbarSpacer"></div>
-    <div class="topbar-backdrop" id="topbarBackdrop"></div>
+    <div class="page-header-placeholder" id="headerPlaceholder"></div>
+
+    <!-- Slim bar: slides in once the time cards have scrolled out of view (see topbar.js).
+         Tap it to slide the full header down from the top. -->
+    <div class="slimbar" id="slimbar" aria-hidden="true">
+      <div class="slimbar-surface">
+        <button class="slimbar-row" id="slimbarToggle" type="button" aria-label="Show the full header" tabindex="-1">
+          <span class="sb-clock" id="sbClock"></span>
+          <span class="sb-date" id="sbDate"></span>
+          <span class="sb-left" id="sbLeft"></span>
+          <span class="sb-spacer"></span>
+          <span class="sb-view" id="sbViewLabel">View: All</span>
+          <span class="sb-chevron"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+      </div>
+    </div>
+    <div class="slimbar-backdrop" id="slimbarBackdrop"></div>
 
     <section class="people-results results-panel" id="peopleResults">
       <div class="people-results-title">
