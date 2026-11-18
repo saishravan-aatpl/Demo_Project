@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'officeDailyDashboard.stable.v2';
-window.WORKSTACK_BUILD = 'v21';
+window.WORKSTACK_BUILD = 'v23';
 const LEGACY_STORAGE_KEYS = [
   'officeDailyDashboard.stable.v1',
   'officeProjectDashboard.v2',
@@ -47,6 +47,8 @@ const els = {
   fabAdd: $id('fabAdd'),
   menuBtn: $id('menuBtn'),
   menuDialog: $id('menuDialog'),
+  settingsDialog: $id('settingsDialog'),
+  settingsBtn: $id('settingsBtn'),
   usualLeaveBtn: $id('usualLeaveBtn'),
   usualLeaveLabel: $id('usualLeaveLabel'),
   layout: $id('layout'),
@@ -400,8 +402,10 @@ function openSheet(dialog, anchor) {
     const a = anchor.getBoundingClientRect();
     const w = dialog.offsetWidth;
     const left = Math.min(Math.max(12, a.right - w), window.innerWidth - w - 12);
-    dialog.style.top = `${a.bottom + 8}px`;
+    dialog.style.top = `${a.bottom + 10}px`;
     dialog.style.left = `${left}px`;
+    // The little pointer on top of the pop-up sits right under the button.
+    dialog.style.setProperty('--caret-x', `${Math.round(a.left + a.width / 2 - left)}px`);
   }
 }
 
@@ -1652,6 +1656,11 @@ els.leaveTime.addEventListener('change', event => setLeaveTime(event.target.valu
 
 els.menuBtn.addEventListener('click', () => openSheet(els.menuDialog, els.menuBtn));
 // Choosing anything in the menu closes it.
+// "Settings & backup": the rarely used things live in their own box.
+els.settingsBtn.addEventListener('click', () => openSheet(els.settingsDialog, null));
+els.settingsDialog.addEventListener('click', event => {
+  if (event.target.closest('.menu-row')) els.settingsDialog.close();
+});
 els.menuDialog.addEventListener('click', event => {
   if (event.target.closest('.menu-row, #syncSignInBtn')) els.menuDialog.close();
 });
@@ -1710,7 +1719,7 @@ els.copySummaryBtn.addEventListener('click', async () => {
 });
 
 els.exportBtn.addEventListener('click', () => {
-  els.menuDialog.close();
+  els.settingsDialog.close();
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -1864,7 +1873,7 @@ document.addEventListener('keydown', event => {
 
 // Arrow keys move between the options in a group (chips, time choices, the
 // side list, the menu, Plan today). Enter or Space then picks the option.
-['rail', 'chips', 'tabbar', 'timeChips', 'addProjects', 'planList', 'menuDialog']
+['rail', 'chips', 'tabbar', 'timeChips', 'addProjects', 'planList', 'menuDialog', 'settingsDialog']
   .forEach(id => $id(id)?.setAttribute('data-arrows', ''));
 document.querySelector('#addDialog .seg')?.setAttribute('data-arrows', '');
 document.addEventListener('keydown', event => {

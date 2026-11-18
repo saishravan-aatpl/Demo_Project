@@ -265,17 +265,28 @@
           <div class="menu-who"><span class="avatar big"><span id="menuInitial"></span></span><div><span class="menu-email" id="syncEmail"></span><div class="sync-status" id="syncStatus" data-state="syncing">Syncing…</div></div></div>
         </div>
       </section>
-      <div class="menu-head">Day</div>
-      <button type="button" class="menu-row" id="usualLeaveBtn">Usual leaving time <span id="usualLeaveLabel"></span></button>
+      <div class="menu-group">
+        <button type="button" class="menu-row" id="usualLeaveBtn" data-icon="clock">Usual leaving time <span id="usualLeaveLabel"></span></button>
+        <button type="button" class="menu-row" id="lockNowBtn" data-icon="lock" hidden>Lock now</button>
+        <button type="button" class="menu-row has-next" id="settingsBtn" data-icon="gear">Settings &amp; backup</button>
+      </div>
+      <button type="button" class="menu-row menu-signout" id="syncSignOut" data-icon="signout" data-when="signed-in" hidden>Sign out</button>
+    </div>
+  </dialog>
+
+  <!-- Settings & backup: the things you rarely need (opens from the menu) -->
+  <dialog class="sheet" id="settingsDialog" aria-labelledby="settingsTitle">
+    <div class="sheet-body menu-body settings-body">
+      <h2 id="settingsTitle">Settings &amp; backup</h2>
+      <p class="subtle settings-sub">Things you rarely need to change.</p>
       <div class="menu-head">This device</div>
-      <button type="button" class="menu-row" id="lockNowBtn" hidden>Lock now</button>
-      <button type="button" class="menu-row" id="pinBtn">Set PIN</button>
-      <div class="menu-head">Data &amp; account</div>
-      <button type="button" class="menu-row" id="exportBtn">Export backup</button>
-      <button type="button" class="menu-row" id="importBtn">Import backup</button>
+      <button type="button" class="menu-row" id="pinBtn" data-icon="key">Set PIN</button>
+      <div class="menu-head">Backup</div>
+      <button type="button" class="menu-row" id="exportBtn" data-icon="download">Export backup</button>
+      <button type="button" class="menu-row" id="importBtn" data-icon="upload">Import backup</button>
       <input type="file" id="importFile" accept="application/json" hidden />
-      <button type="button" class="menu-row" id="syncChangePassword" data-when="signed-in" hidden>Change password</button>
-      <button type="button" class="menu-row danger" id="syncSignOut" data-when="signed-in" hidden>Sign out</button>
+      <div class="menu-head" data-when="signed-in" hidden>Account</div>
+      <button type="button" class="menu-row" id="syncChangePassword" data-icon="password" data-when="signed-in" hidden>Change password</button>
     </div>
   </dialog>
 

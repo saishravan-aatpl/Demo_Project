@@ -69,6 +69,12 @@ Key details:
   open name picker, and leaves the notes box. New pop-ups need the same.
   The owner uses **Brave**, which sometimes doesn't pass the Esc *press* to the
   page: app.js replays an Esc *release* as a press when that happens.
+- Menu behind your initial (`#menuDialog`): account + sync tag, Usual leaving
+  time, Lock now (if PIN), "Settings & backup ›", Sign out. Rarely used items
+  (PIN, export/import, change password) live in `#settingsDialog`. Row icons
+  come from `data-icon` on `.menu-row` (CSS masks), so JS can set textContent.
+- Arrow-key selection style everywhere: rounded dark fill + white text (no
+  square outlines). An already-chosen dark item gets a ring when focused.
 - Focus outlines / dark keyboard highlights only show while `html.using-keys`
   is set (Tab or arrow keys; cleared by any tap/click). Never show them on phones.
 - Pop-ups opened with the mouse focus the box itself, not its first button
