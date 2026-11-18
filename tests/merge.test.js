@@ -10,7 +10,7 @@ const copy = x => JSON.parse(JSON.stringify(x));
 const base = data([
   project('p1', 'Alpha', [task('t1', 'one'), task('t2', 'two')]),
   project('p2', 'Beta', [task('t3', 'three')])
-], { people: ['Sai', 'Mohan'] });
+], { people: ['Sam', 'Miles'] });
 
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('PASS ', name); }
@@ -25,10 +25,10 @@ test('Phone ticks a task while laptop adds a task: both kept', () => {
 
 test('Different fields of the same task changed on each device: both kept', () => {
   const a = copy(base); a.projects[0].tasks[1].text = 'two (renamed)';
-  const b = copy(base); b.projects[0].tasks[1].person = 'Sai';
+  const b = copy(base); b.projects[0].tasks[1].person = 'Sam';
   const out = merge(base, a, b);
   assert.equal(out.projects[0].tasks[1].text, 'two (renamed)');
-  assert.equal(out.projects[0].tasks[1].person, 'Sai');
+  assert.equal(out.projects[0].tasks[1].person, 'Sam');
 });
 
 test('Deleted on one device, untouched on the other: stays deleted', () => {
@@ -60,9 +60,9 @@ test('Re-ordering on one device is kept, new items still included', () => {
 });
 
 test('People: additions from both sides kept, removals respected', () => {
-  const a = copy(base); a.people = ['Sai', 'Mohan', 'Neha'];
-  const b = copy(base); b.people = ['Sai', 'Kantha'];          // removed Mohan, added Kantha
-  assert.deepEqual(merge(base, a, b).people, ['Sai', 'Kantha', 'Neha']);
+  const a = copy(base); a.people = ['Sam', 'Miles', 'Nina'];
+  const b = copy(base); b.people = ['Sam', 'Kendall'];          // removed Miles, added Kendall
+  assert.deepEqual(merge(base, a, b).people, ['Sam', 'Kendall', 'Nina']);
 });
 
 test('First sync of two devices with the same imported backup: no duplicates', () => {

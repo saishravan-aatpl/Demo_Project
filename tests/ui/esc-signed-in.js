@@ -1,0 +1,31 @@
+const { chromium } = require('playwright');
+const fs = require('fs');
+const S = process.argv[3];
+const mockJs = fs.readFileSync(process.argv[4], 'utf8');
+const configJs = `window.DASHBOARD_CONFIG = { supabaseUrl: 'https://mock.supabase.co', supabaseKey: 'sb_publishable_test' };`;
+const ok = (c, m) => console.log((c ? 'PASS ' : 'FAIL ') + m);
+(async () => {
+  const b = await chromium.launch();
+  const ctx = await b.newContext({ viewport: { width: 1366, height: 768 }, serviceWorkers: 'block' });
+  await ctx.route('**/config.js', r => r.fulfill({ contentType: 'application/javascript', body: configJs }));
+  await ctx.route('**/vendor/supabase-js-*.js', r => r.fulfill({ contentType: 'application/javascript', body: mockJs }));
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
+  await p.goto('http://localhost:8123/'); await p.waitForTimeout(300);
+  await p.fill('#authEmail', 'me@example.com'); await p.fill('#authPassword', 'Secret123!'); await p.click('#authSubmit'); await p.waitForTimeout(1500);
+  const signed = !(await p.evaluate(() => document.documentElement.classList.contains('needs-auth')));
+  ok(signed, 'signed in');
+  if (!signed) { console.log(await p.locator('#authError, .auth-error').allInnerTexts()); }
+  await p.reload(); await p.waitForTimeout(1500);
+  const esc = async () => { await p.keyboard.press('Escape'); await p.waitForTimeout(150); };
+  const isOpen = id => p.evaluate(id => document.getElementById(id).open, id);
+  await p.locator('#menuBtn').click(); await p.waitForTimeout(150); await esc();
+  ok(!(await isOpen('menuDialog')), 'signed in: menu closes on Esc');
+  await p.locator('#railAddProject').click(); await p.waitForTimeout(150); await esc();
+  ok(!(await isOpen('addDialog')), 'signed in: new project closes on Esc');
+  await p.locator('#railAddProject').click(); await p.keyboard.type('Esc test project'); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+  ok(await p.locator('.project-title', { hasText: 'Esc test project' }).count() === 1, 'signed in: Enter adds the project');
+  await p.locator('#dayNotes').click(); await esc();
+  ok(await p.evaluate(() => document.activeElement.id !== 'dayNotes'), 'signed in: Esc leaves notes');
+  console.log('errors', errs);
+  await b.close();
+})();

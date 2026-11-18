@@ -1,0 +1,160 @@
+{
+  "projects": [
+    {
+      "id": "proj-1",
+      "name": "Web Portal",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "task-1",
+          "text": "Follow up on budget tracking",
+          "done": false,
+          "person": "Sam"
+        }
+      ]
+    },
+    {
+      "id": "proj-2",
+      "name": "Mobile App",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "task-2",
+          "text": "Follow up on test plan",
+          "done": false,
+          "person": "Sam"
+        },
+        {
+          "id": "task-3",
+          "text": "Get layout details from Robin",
+          "done": false,
+          "person": "Sage"
+        }
+      ]
+    },
+    {
+      "id": "proj-3",
+      "name": "Data Hub",
+      "priority": "none",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "task-4",
+          "text": "Collect quotes",
+          "done": false,
+          "person": "Priya"
+        },
+        {
+          "id": "task-5",
+          "text": "Push for design sign-off",
+          "done": false,
+          "person": "Sam"
+        }
+      ]
+    },
+    {
+      "id": "proj-4",
+      "name": "Client Demo",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "task-6",
+          "text": "Update \"1\" demo unit with new screen",
+          "done": false,
+          "person": "Sam"
+        }
+      ]
+    },
+    {
+      "id": "proj-5",
+      "name": "Web Speedup",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "task-7",
+          "text": "Follow up on 10 sample sets",
+          "done": false,
+          "person": ""
+        }
+      ]
+    },
+    {
+      "id": "proj-6",
+      "name": "App Speedup",
+      "priority": "none",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "task-8",
+          "text": "Push for faster build",
+          "done": false,
+          "person": "Sam"
+        },
+        {
+          "id": "task-9",
+          "text": "Follow up on v2 parts and timelines",
+          "done": false,
+          "person": "Sam"
+        }
+      ]
+    },
+    {
+      "id": "proj-7",
+      "name": "Miscellaneous",
+      "priority": "none",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "task-10",
+          "text": "Try new tool for documentation",
+          "done": false,
+          "person": "Sam"
+        },
+        {
+          "id": "task-11",
+          "text": "Idea planning",
+          "done": false,
+          "person": "Sam"
+        }
+      ]
+    },
+    {
+      "id": "proj-8",
+      "name": "Others",
+      "priority": "none",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "task-12",
+          "text": "Garden pump concept",
+          "done": false,
+          "person": "Sam"
+        },
+        {
+          "id": "task-13",
+          "text": "Garden tool concept",
+          "done": false,
+          "person": "Sam"
+        }
+      ]
+    }
+  ],
+  "people": [
+    "Kendall",
+    "Miles",
+    "Sam",
+    "Nina",
+    "Priya",
+    "Harper",
+    "Jordan",
+    "Mason",
+    "Marco",
+    "Avery",
+    "Casey",
+    "Sage"
+  ],
+  "leaveTime": "17:00",
+  "dayNotes": "",
+  "personFilter": "all",
+  "peopleOpenOnly": false
+}

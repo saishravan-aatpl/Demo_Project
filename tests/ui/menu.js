@@ -1,0 +1,45 @@
+const { chromium, devices } = require('playwright');
+const fs = require('fs');
+const S = process.argv[3];
+const mockJs = fs.readFileSync(process.argv[4], 'utf8');
+const configJs = `window.DASHBOARD_CONFIG = { supabaseUrl: 'https://mock.supabase.co', supabaseKey: 'sb_publishable_test' };`;
+const ok = (c, m) => console.log((c ? 'PASS ' : 'FAIL ') + m);
+async function dev(b, opts) {
+  const ctx = await b.newContext({ ...opts, serviceWorkers: 'block' });
+  await ctx.route('**/config.js', r => r.fulfill({ contentType: 'application/javascript', body: configJs }));
+  await ctx.route('**/vendor/supabase-js-*.js', r => r.fulfill({ contentType: 'application/javascript', body: mockJs }));
+  const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('dialog', d => d.accept());
+  await p.goto('http://localhost:8123/'); await p.waitForTimeout(300);
+  await p.fill('#authEmail', 'alex.morgan@example.com'); await p.fill('#authPassword', 'Secret123!'); await p.click('#authSubmit'); await p.waitForTimeout(1500);
+  return p;
+}
+(async () => {
+  const b = await chromium.launch();
+  let p = await dev(b, { viewport: { width: 1300, height: 760 }, deviceScaleFactor: 2 });
+  await p.locator('#menuBtn').click(); await p.waitForTimeout(300);
+  ok(await p.locator('#settingsBtn').isVisible() && await p.locator('#syncSignOut').isVisible(), 'laptop: menu has Settings & Sign out');
+  ok(!(await p.locator('#exportBtn').isVisible()), 'laptop: backups are no longer in the menu');
+  let d = await p.locator('#menuDialog').boundingBox();
+  await p.screenshot({ path: S + '/c-menu.png', clip: { x: d.x - 40, y: d.y - 60, width: d.width + 60, height: d.height + 80 } });
+  await p.keyboard.press('ArrowDown'); await p.keyboard.press('ArrowDown'); await p.waitForTimeout(250);
+  await p.screenshot({ path: S + '/c-menu-keys.png', clip: { x: d.x - 10, y: d.y - 10, width: d.width + 20, height: d.height + 20 } });
+  await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+  ok(await p.evaluate(() => document.getElementById('settingsDialog').open && !document.getElementById('menuDialog').open), 'laptop: Enter on Settings opens the Settings box');
+  d = await p.locator('#settingsDialog').boundingBox();
+  await p.screenshot({ path: S + '/c-settings.png', clip: { x: d.x - 20, y: d.y - 20, width: d.width + 40, height: d.height + 40 } });
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  ok(!(await p.evaluate(() => document.getElementById('settingsDialog').open)), 'laptop: Esc closes Settings');
+  await p.locator('#menuBtn').click(); await p.locator('#settingsBtn').click(); await p.waitForTimeout(200);
+  await p.locator('#pinBtn').click(); await p.waitForTimeout(200);
+  ok(await p.evaluate(() => document.getElementById('pinDialog').open && !document.getElementById('settingsDialog').open), 'laptop: Set PIN opens from Settings');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(150);
+  ok(p.errs.length === 0, 'laptop: no errors ' + p.errs.join(';'));
+  await p.context().close();
+  p = await dev(b, devices['iPhone 13']);
+  await p.locator('#menuBtn').tap(); await p.waitForTimeout(400);
+  await p.screenshot({ path: S + '/c-phone.png' });
+  await p.locator('#settingsBtn').tap(); await p.waitForTimeout(400);
+  await p.screenshot({ path: S + '/c-phone-settings.png' });
+  ok(p.errs.length === 0, 'phone: no errors ' + p.errs.join(';'));
+  await b.close();
+})();

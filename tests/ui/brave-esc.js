@@ -1,0 +1,38 @@
+const { chromium } = require('playwright');
+const fs = require('fs');
+const data = fs.readFileSync(process.argv[2], 'utf8');
+const ok = (c, m) => console.log((c ? 'PASS ' : 'FAIL ') + m);
+(async () => {
+  const b = await chromium.launch(); const c = await b.newContext({ viewport: { width: 1300, height: 800 }, serviceWorkers: 'block' });
+  await c.route('**/config.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.DASHBOARD_CONFIG={}' }));
+  await c.addInitScript(d => { if (!sessionStorage.getItem('x')) { sessionStorage.setItem('x','1'); localStorage.clear(); localStorage.setItem('officeDailyDashboard.stable.v2', d); } }, data);
+  // Simulate a browser that swallows the real Esc *press* (only the release reaches the page)
+  await c.addInitScript(() => { window.addEventListener('keydown', e => { if (e.isTrusted && e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); } }, true); });
+  const p = await c.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8123/#debug'); await p.waitForTimeout(400);
+  const esc = async () => { await p.keyboard.press('Escape'); await p.waitForTimeout(200); };
+  const isOpen = id => p.evaluate(id => document.getElementById(id).open, id);
+  await p.locator('#menuBtn').click(); await p.waitForTimeout(150);
+  ok(await p.evaluate(() => document.activeElement.id) === 'menuDialog', 'menu opened by mouse: nothing pre-selected');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(150);
+  ok(!(await isOpen('timeDialog')), 'stray Enter does nothing');
+  await p.keyboard.press('ArrowDown');
+  ok(await p.evaluate(() => document.activeElement.id) === 'usualLeaveBtn', '↓ highlights the first row');
+  await esc();
+  ok(!(await isOpen('menuDialog')), 'Esc (release only) closes the menu');
+  await p.locator('#railAddProject').click(); await p.waitForTimeout(150); await p.keyboard.type('abc'); await esc();
+  ok(!(await isOpen('addDialog')), 'Esc (release only) closes new project');
+  await p.locator('#dayNotes').click(); await esc();
+  ok(await p.evaluate(() => document.activeElement.id !== 'dayNotes'), 'Esc (release only) leaves notes');
+  const row = p.locator('.task-item').nth(1); await row.locator('.person-field').click(); await esc();
+  ok(!(await row.locator('.person-menu').evaluate(e => e.classList.contains('open'))), 'Esc (release only) closes the name picker');
+  await row.hover(); await row.locator('.task-more').click(); await esc();
+  ok(await p.evaluate(() => !document.querySelector('.action-menu')), 'Esc (release only) closes ⋯ menu');
+  await p.locator('#addBtn').click(); await p.keyboard.type('x @'); await esc();
+  ok(await p.locator('#addDialog .mention-box').isHidden() && await isOpen('addDialog'), 'Esc (release only): @ list closes first');
+  await esc();
+  ok(!(await isOpen('addDialog')), '...then quick add');
+  console.log(await p.locator('#debugBox').innerText());
+  ok(errs.length === 0, 'no errors ' + errs.join(';'));
+  await b.close();
+})();

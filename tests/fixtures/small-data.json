@@ -1,0 +1,76 @@
+{
+  "projects": [
+    {
+      "id": "p1",
+      "name": "Website refresh",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "t1",
+          "text": "Draft homepage copy",
+          "done": false,
+          "person": "Alex"
+        },
+        {
+          "id": "t2",
+          "text": "Review colours",
+          "done": false,
+          "person": ""
+        },
+        {
+          "id": "t3",
+          "text": "Send mockups",
+          "done": false,
+          "person": "Sam"
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "name": "Quarterly report",
+      "collapsed": false,
+      "tasks": [
+        {
+          "id": "t4",
+          "text": "Collect numbers",
+          "done": false,
+          "person": "Jordan"
+        },
+        {
+          "id": "t5",
+          "text": "Write summary",
+          "done": false,
+          "person": ""
+        },
+        {
+          "id": "t6",
+          "text": "Book review meeting",
+          "done": false,
+          "person": "Alex"
+        },
+        {
+          "id": "t7",
+          "text": "Check budget lines",
+          "done": false,
+          "person": ""
+        },
+        {
+          "id": "t8",
+          "text": "Share final PDF",
+          "done": false,
+          "person": "Sam"
+        }
+      ]
+    }
+  ],
+  "people": [
+    "Alex",
+    "Sam",
+    "Jordan",
+    "Priya"
+  ],
+  "usualLeaveTime": "18:00",
+  "leaveTime": "18:00",
+  "leaveDate": "",
+  "dayNotes": "Sample notes"
+}

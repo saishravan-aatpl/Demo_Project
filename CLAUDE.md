@@ -87,7 +87,17 @@ Key details:
 
 ## Testing
 
+**Before every release run both, and only merge when everything passes:**
+
 - `node tests/merge.test.js` — merge logic.
-- UI is checked with Playwright (Chromium is pre-installed in cloud sessions)
-  against `python3 -m http.server 8123` run from the repo. Test phone sizes and
-  laptop, and use made-up sample data, never real backups.
+- `bash tests/run-ui.sh` — all screen checks (Playwright + Chromium, which is
+  pre-installed in cloud sessions). It starts `python3 -m http.server 8123`
+  from the repo if needed, and a pretend cloud (`tests/helpers/fake-cloud.js`,
+  port 8124) for the sign-in/sync checks. Run a few with
+  `bash tests/run-ui.sh esc keyboard`. Takes a few minutes.
+
+Layout: `tests/ui/*.js` (one file per area; each prints PASS/FAIL lines),
+`tests/fixtures/sample-data.json` (8 projects, 12 people, same shape as a real
+backup) and `small-data.json`, `tests/helpers/mock-supabase.js` (stands in for
+supabase-js). All names in them are made up — keep it that way, never real
+backups. When a fix or feature changes behaviour, update or add a check here.

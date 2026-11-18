@@ -1,0 +1,57 @@
+const { chromium } = require('playwright');
+const fs = require('fs');
+const data = fs.readFileSync(process.argv[2], 'utf8'); const S = process.argv[3];
+const ok = (c, m) => console.log((c ? 'PASS ' : 'FAIL ') + m);
+(async () => {
+  const b = await chromium.launch(); const c = await b.newContext({ viewport: { width: 1300, height: 800 }, serviceWorkers: 'block' });
+  await c.route('**/config.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.DASHBOARD_CONFIG={}' }));
+  await c.addInitScript(d => { if (!sessionStorage.getItem('x')) { sessionStorage.setItem('x','1'); localStorage.clear(); localStorage.setItem('officeDailyDashboard.stable.v2', d); } }, data);
+  const p = await c.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8123/'); await p.waitForTimeout(400);
+  const bg = sel => p.evaluate(s => { const e = document.querySelector(s); return e ? getComputedStyle(e).backgroundColor : 'none'; }, sel);
+  // 1. Name picker
+  let row = p.locator('.task-item').nth(1);
+  await row.locator('.person-field').click(); await p.waitForTimeout(100);
+  await p.keyboard.press('ArrowDown'); await p.keyboard.press('ArrowDown');
+  ok(await bg('.person-menu.open .person-option.active') === 'rgb(17, 24, 39)', 'name picker: selected name is dark');
+  ok((await p.locator('.person-menu.open .person-option.active').innerText()).includes('Jordan'), 'name picker: ↓↓ selects Jordan');
+  const box = await row.locator('.person-menu').boundingBox();
+  await p.screenshot({ path: S + '/k1.png', clip: { x: box.x - 10, y: box.y - 10, width: box.width + 20, height: box.height + 20 } });
+  await p.keyboard.press('ArrowUp'); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+  ok((await p.locator('.task-item').nth(1).locator('.person-field').innerText()) === 'Sam', 'name picker: ↑ then Enter assigns Sam');
+  row = p.locator('.task-item').nth(2);
+  await row.locator('.person-field').click(); await p.keyboard.press('ArrowDown'); await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  ok(!(await row.locator('.person-menu').evaluate(e => e.classList.contains('open'))), 'name picker: Esc closes');
+  ok(await p.evaluate(() => document.activeElement.classList.contains('person-field')), 'name picker: focus back on the name button');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(100);
+  ok(await row.locator('.person-menu').evaluate(e => e.classList.contains('open')), 'name picker: Enter re-opens it from the keyboard');
+  await p.keyboard.press('Escape');
+  // 2. @ list in quick add
+  await p.locator('#addBtn').click(); await p.waitForTimeout(200);
+  await p.keyboard.type('Call @'); await p.keyboard.press('ArrowDown'); await p.keyboard.press('ArrowDown');
+  ok(await bg('.mention-option.on') === 'rgb(17, 24, 39)', '@ list: selected name is dark');
+  const d = await p.locator('#addDialog').boundingBox(); const mb = await p.locator('#addDialog .mention-box').boundingBox();
+  await p.screenshot({ path: S + '/k2.png', clip: { x: d.x - 10, y: d.y - 10, width: d.width + 20, height: Math.max(d.height, mb.y + mb.height - d.y) + 20 } });
+  const vis = await p.evaluate(() => { const o = [...document.querySelectorAll('#addDialog .mention-option')].pop().getBoundingClientRect(); const e = document.elementFromPoint(o.x + 20, o.y + o.height / 2); return !!e?.closest('.mention-option'); });
+  ok(vis, '@ list: last name not cut off');
+  await p.keyboard.press('Enter');
+  ok((await p.inputValue('#addText')).startsWith('Call @Jordan'), '@ list: Enter picks it -> ' + await p.inputValue('#addText'));
+  await p.keyboard.type('@'); await p.keyboard.press('Escape');
+  ok(await p.locator('#addDialog .mention-box').isHidden() && await p.locator('#addDialog').evaluate(e => e.open), '@ list: Esc closes the list only');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  ok(!(await p.locator('#addDialog').evaluate(e => e.open)), 'quick add: second Esc closes it');
+  // 3. ⋯ menu opened with the mouse, then arrows
+  row = p.locator('.task-item').first(); await row.hover(); await row.locator('.task-more').click(); await p.waitForTimeout(100);
+  await p.keyboard.press('ArrowDown');
+  ok(await p.evaluate(() => document.activeElement.textContent) === 'Pin for today', '⋯ menu: first ↓ selects the first item');
+  await p.waitForTimeout(300);
+  ok(await p.evaluate(() => getComputedStyle(document.activeElement).backgroundColor) === 'rgb(17, 24, 39)', '⋯ menu: selected item is dark');
+  const mm = await p.locator('.action-menu').boundingBox();
+  await p.screenshot({ path: S + '/k3.png', clip: { x: mm.x - 10, y: mm.y - 10, width: mm.width + 20, height: mm.height + 20 } });
+  await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+  ok(await p.locator('.task-item').first().evaluate(e => e.classList.contains('pinned')) || await p.evaluate(() => document.querySelectorAll('.focus-row, #focusList > *').length > 0), '⋯ menu: Enter runs it (pinned)');
+  await row.hover(); await row.locator('.task-more').click(); await p.keyboard.press('Escape');
+  ok(await p.evaluate(() => !document.querySelector('.action-menu')), '⋯ menu: Esc closes');
+  ok(errs.length === 0, 'no errors ' + errs.join(';'));
+  await b.close();
+})();
