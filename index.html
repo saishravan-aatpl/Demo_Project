@@ -43,6 +43,54 @@
       }
     } catch (e) { document.documentElement.classList.add('locked'); }
   </script>
+  <!-- Troubleshooting: add #debug to the address to see errors and key presses
+       in a small box at the bottom of the screen. Nothing is shown otherwise. -->
+  <script>
+    (function () {
+      var errors = [], keys = [];
+      function paint() {
+        if (location.hash.indexOf('debug') < 0 || !document.body) return;
+        var box = document.getElementById('debugBox');
+        if (!box) {
+          box = document.createElement('pre');
+          box.id = 'debugBox';
+          box.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99999;max-width:min(620px,calc(100vw - 16px));max-height:45vh;overflow:auto;margin:0;padding:10px;background:#111827;color:#e5e7eb;font:12px/1.45 monospace;border-radius:10px;white-space:pre-wrap;pointer-events:none;';
+          document.body.appendChild(box);
+        }
+        box.textContent = 'Workstack ' + (window.WORKSTACK_BUILD || '(app.js not loaded!)') + '  ·  ' + (navigator.userAgent.match(/(Edg|Chrome|Firefox|Version)\/[\d.]+/g) || []).join(' ') +
+          '\nErrors: ' + (errors.length ? '\n  ' + errors.join('\n  ') : 'none') +
+          '\nKeys (newest first):' + (keys.length ? '\n  ' + keys.join('\n  ') : ' press Esc or Enter');
+      }
+      function describe(el) {
+        if (!el || !el.tagName) return 'page';
+        var cls = typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '';
+        return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + cls;
+      }
+      function openDialogs() {
+        return [].map.call(document.querySelectorAll('dialog[open], .person-menu.open, .action-menu'), function (d) { return d.id || d.className.split(' ')[0]; }).join(',') || 'none';
+      }
+      window.addEventListener('error', function (e) {
+        errors.push((e.message || 'error') + '  (' + String(e.filename || '').split('/').pop() + ':' + e.lineno + ')');
+        paint();
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        errors.push('async: ' + (e.reason && e.reason.message || e.reason));
+        paint();
+      });
+      window.addEventListener('keydown', function (e) {
+        if (['Escape', 'Esc', 'Enter'].indexOf(e.key) < 0 && e.keyCode !== 13 && e.keyCode !== 27) return;
+        var before = openDialogs();
+        setTimeout(function () {
+          keys.unshift(e.key + ' in ' + describe(e.target) + ' | open: ' + before + ' -> ' + openDialogs() + (e.defaultPrevented ? ' | handled' : ''));
+          keys.length = Math.min(keys.length, 8);
+          paint();
+        }, 60);
+      }, true);
+      window.addEventListener('hashchange', paint);
+      window.addEventListener('load', paint);
+      window.WorkstackDebug = { errors: errors, paint: paint };
+    })();
+  </script>
 </head>
 <body>
   <!-- Sign-in screen: shown first when nobody is signed in (see sync.js) -->

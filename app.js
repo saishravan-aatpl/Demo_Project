@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'officeDailyDashboard.stable.v2';
+window.WORKSTACK_BUILD = 'v19';
 const LEGACY_STORAGE_KEYS = [
   'officeDailyDashboard.stable.v1',
   'officeProjectDashboard.v2',
@@ -1796,7 +1797,9 @@ window.dashboardApp = {
 };
 
 els.dayNotes.value = state.dayNotes;
-render();
+// If drawing the list fails for some reason, keep going so the rest of the app
+// (keyboard handling, clock, saving) still starts. The error is still reported.
+try { render(); } catch (error) { setTimeout(() => { throw error; }); }
 formatDateTime();
 saveState(false);
 setInterval(formatDateTime, 1000);
