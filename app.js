@@ -1142,7 +1142,9 @@ function bindTaskEvents(card, project) {
 
       if (event.key === 'Escape') {
         event.preventDefault();
+        event.stopPropagation();
         personMenu.classList.remove('open');
+        personField.focus();
       }
     });
 
@@ -1290,6 +1292,10 @@ function renderPersonList(menu, task) {
       <span class="person-option-name">${escapeHtml(name)}</span>
       <button type="button" class="person-remove" title="Remove from suggestions" aria-label="Remove ${escapeHtml(name)} from suggestions">×</button>
     `;
+    row.addEventListener('mouseenter', () => {
+      menu.dataset.activeIndex = String(index);
+      updatePersonActiveOption(menu);
+    });
     row.addEventListener('click', () => {
       task.person = name;
       addPersonName(name, false);
@@ -1315,6 +1321,10 @@ function renderPersonList(menu, task) {
     add.className = `person-add ${index === activeIndex ? 'active' : ''}`;
     add.dataset.name = typed;
     add.textContent = `+ Add "${typed}"`;
+    add.addEventListener('mouseenter', () => {
+      menu.dataset.activeIndex = String(index);
+      updatePersonActiveOption(menu);
+    });
     add.addEventListener('click', () => {
       task.person = typed;
       addPersonName(typed, false);
@@ -1507,6 +1517,13 @@ function attachMentions(input) {
       event.stopPropagation();
       close();
     }
+  });
+  // Moving the mouse over the list moves the highlight too.
+  box.addEventListener('pointermove', event => {
+    const button = event.target.closest('.mention-option');
+    if (!button || Number(button.dataset.index) === active) return;
+    active = Number(button.dataset.index);
+    box.querySelectorAll('.mention-option').forEach((b, i) => { b.classList.toggle('on', i === active); b.setAttribute('aria-selected', String(i === active)); });
   });
   // pointerdown so the input doesn't lose focus (and the phone keyboard stays up)
   box.addEventListener('pointerdown', event => {

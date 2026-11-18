@@ -9,6 +9,8 @@
 const ActionMenu = (() => {
   let menu = null;
   let anchor = null;
+  let lastPointer = 0;   // opened with mouse/finger: don't pre-highlight the first item
+  document.addEventListener('pointerdown', () => { lastPointer = Date.now(); }, true);
 
   function close() {
     if (!menu) return;
@@ -28,6 +30,7 @@ const ActionMenu = (() => {
     menu = document.createElement('div');
     menu.className = 'action-menu';
     menu.setAttribute('role', 'menu');
+    menu.tabIndex = -1;
     menu.addEventListener('click', event => event.stopPropagation());
     menu.addEventListener('pointerdown', event => event.stopPropagation());
     menu.addEventListener('keydown', onMenuKey);
@@ -70,7 +73,10 @@ const ActionMenu = (() => {
     });
 
     place();
-    menu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
+    // From the keyboard: highlight the first item. From a mouse/tap: just listen
+    // for arrow keys (the first ↓ then highlights the first item).
+    if (Date.now() - lastPointer < 800) menu.focus({ preventScroll: true });
+    else menu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
   }
 
   // Keyboard: ↑/↓ move, Home/End jump, → opens a submenu, ← goes back,

@@ -61,7 +61,9 @@ Key details:
 - Top bar, left list and notes column must stay put while scrolling. Never put
   `overflow-x: hidden` on `html`/`body` (it breaks that); use `clip`.
 - Keyboard: arrow keys work in option groups (`data-arrows`), ⋯ menus, the
-  person picker and @-suggestions. Keep that working for new lists.
+  person picker and @-suggestions. Keep that working for new lists: the
+  selected option must be clearly visible (dark fill #111827, white text),
+  Enter picks it, Esc closes and returns focus to where you were.
 - Samsung keyboards show "Send"/"Go" instead of Enter: put single text boxes in
   a `<form>` and handle `submit`, or offer a tappable button.
 
