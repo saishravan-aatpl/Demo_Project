@@ -14,7 +14,7 @@
 (function (root) {
   const SYNCED_FIELDS = ['projects', 'people', 'leaveTime', 'dayNotes'];
   const PROJECT_FIELDS = ['name', 'collapsed', 'priority'];
-  const TASK_FIELDS = ['text', 'done', 'person'];
+  const TASK_FIELDS = ['text', 'done', 'person', 'pinnedOn'];
 
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const clone = value => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));

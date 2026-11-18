@@ -56,6 +56,16 @@ const els = {
   peopleTaskList: document.getElementById('peopleTaskList'),
   toast: document.getElementById('toast'),
   undoToast: document.getElementById('undoToast'),
+  focusPanel: document.getElementById('focusPanel'),
+  focusList: document.getElementById('focusList'),
+  focusCount: document.getElementById('focusCount'),
+  focusEmpty: document.getElementById('focusEmpty'),
+  focusCarry: document.getElementById('focusCarry'),
+  focusCarryText: document.getElementById('focusCarryText'),
+  planDialog: document.getElementById('planDialog'),
+  planList: document.getElementById('planList'),
+  planCount: document.getElementById('planCount'),
+  planDone: document.getElementById('planDone'),
   undoMessage: document.getElementById('undoMessage'),
   undoBtn: document.getElementById('undoBtn')
 };
@@ -134,6 +144,8 @@ function normalizeState(data) {
       task.done = Boolean(task.done);
       task.person = (task.person || '').trim();
       if (task.person) data.people.push(task.person);
+      // pinnedOn: the day (YYYY-MM-DD) the task was pinned for; absent = not pinned
+      if (!(typeof task.pinnedOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(task.pinnedOn))) delete task.pinnedOn;
     });
     sortDoneTasksToBottom(project);
   });
@@ -236,8 +248,11 @@ function showToast(message) {
   toastTimer = setTimeout(() => els.toast.classList.remove('show'), 1000);
 }
 
+let renderedDay = null;
 function formatDateTime() {
   const now = new Date();
+  // A new day started while the app was open: refresh what's pinned for today.
+  if (renderedDay && renderedDay !== todayKey()) render();
   els.todayDate.textContent = now.toLocaleDateString('en-IN', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
@@ -328,7 +343,7 @@ function render() {
     const taskList = card.querySelector('.task-list');
     project.tasks.forEach(task => {
       const item = document.createElement('li');
-      item.className = `task-item ${task.done ? 'done' : ''}`;
+      item.className = `task-item ${task.done ? 'done' : ''} ${isPinnedToday(task) ? 'pinned' : ''}`;
       item.dataset.taskId = task.id;
       item.innerHTML = `
         <span class="task-handle" title="Drag to reorder" aria-hidden="true">⋮⋮</span>
@@ -345,6 +360,7 @@ function render() {
             </div>
           </div>
         </div>
+        <button class="pin-btn task-pin" type="button" aria-pressed="${isPinnedToday(task)}" title="${isPinnedToday(task) ? 'Unpin' : 'Pin for today'}" aria-label="${isPinnedToday(task) ? 'Unpin from today' : 'Pin for today'}">${PIN_ICON}</button>
         <button class="more-btn task-more" type="button" title="More" aria-label="More task actions" aria-haspopup="menu" aria-expanded="false">⋯</button>
       `;
       taskList.appendChild(item);
@@ -355,9 +371,186 @@ function render() {
   });
 
   renderSummary();
+  renderFocus();
   renderPeopleView();
   updateRemainingTime();
   autosizeAllTaskText();
+}
+
+// ---------- pinned for today ----------
+const PIN_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l-1 5 3.5 3.5H6.5L10 8.5z"/><path d="M12 12v8.5"/></svg>';
+const todayKey = () => new Date().toLocaleDateString('en-CA');      // e.g. 2026-11-18
+const isPinnedToday = task => task.pinnedOn === todayKey();
+// Pinned on an earlier day and still not done: offered to keep or clear.
+const isCarriedOver = task => Boolean(task.pinnedOn) && task.pinnedOn < todayKey() && !task.done;
+
+function allTasks() {
+  return state.projects.flatMap(project => project.tasks.map(task => ({ project, task })));
+}
+
+function setPinned(task, pinned) {
+  if (pinned) task.pinnedOn = todayKey();
+  else delete task.pinnedOn;
+}
+
+function togglePin(project, task) {
+  const pin = !isPinnedToday(task);
+  withUndo(pin ? 'Pinned for today' : 'Unpinned', () => {
+    setPinned(task, pin);
+    saveState(false);
+    render();
+  });
+}
+
+function renderFocus() {
+  renderedDay = todayKey();
+  const pinned = allTasks().filter(({ task }) => isPinnedToday(task));
+  const carried = allTasks().filter(({ task }) => isCarriedOver(task));
+  const openCount = pinned.filter(({ task }) => !task.done).length;
+
+  els.focusCount.textContent = pinned.length ? `${openCount} open` : '';
+  els.focusEmpty.hidden = pinned.length > 0 || carried.length > 0;
+  els.focusCarry.hidden = carried.length === 0;
+  els.focusCarryText.textContent = carried.length === 1
+    ? '1 task you pinned earlier is still open.'
+    : `${carried.length} tasks you pinned earlier are still open.`;
+  els.focusPanel.classList.toggle('has-items', pinned.length > 0);
+
+  els.focusList.innerHTML = '';
+  // Open ones first, finished ones after (struck through, until tomorrow).
+  [...pinned.filter(x => !x.task.done), ...pinned.filter(x => x.task.done)].forEach(({ project, task }) => {
+    const row = document.createElement('li');
+    row.className = `focus-item ${task.done ? 'done' : ''}`;
+    row.innerHTML = `
+      <input type="checkbox" class="task-check" ${task.done ? 'checked' : ''} aria-label="Mark task done" />
+      <button type="button" class="focus-text" title="Show in ${escapeHtml(project.name)}">
+        <span class="focus-task">${escapeHtml(task.text)}</span>
+        <span class="focus-project">${escapeHtml(project.name)}</span>
+      </button>
+      <span class="focus-person">${task.person ? escapeHtml(task.person) : '<span class="muted-dash">—</span>'}</span>
+      <button type="button" class="pin-btn" aria-pressed="true" title="Unpin" aria-label="Unpin from today">${PIN_ICON}</button>`;
+    row.querySelector('.task-check').addEventListener('change', event => {
+      task.done = event.target.checked;
+      sortDoneTasksToBottom(project);
+      saveState(false);
+      render();
+    });
+    row.querySelector('.pin-btn').addEventListener('click', () => togglePin(project, task));
+    row.querySelector('.focus-text').addEventListener('click', () => revealTask(project, task));
+    els.focusList.appendChild(row);
+  });
+}
+
+// Scroll to a task in its project (opening the project if collapsed) and flash it.
+function revealTask(project, task) {
+  if (project.collapsed) {
+    project.collapsed = false;
+    saveState(false);
+    render();
+  }
+  const row = document.querySelector(`.task-item[data-task-id="${task.id}"]`);
+  if (!row) return;
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.classList.remove('flash');
+  void row.offsetWidth;
+  row.classList.add('flash');
+}
+
+// "Plan today": tick several tasks at once.
+function openPlanToday() {
+  const groups = state.projects
+    .map(project => ({ project, tasks: project.tasks.filter(task => !task.done) }))
+    .filter(group => group.tasks.length);
+  els.planList.innerHTML = '';
+  if (!groups.length) {
+    els.planList.innerHTML = '<p class="subtle">No open tasks yet.</p>';
+  }
+  groups.forEach(({ project, tasks }) => {
+    const block = document.createElement('div');
+    block.className = 'plan-group';
+    block.innerHTML = `<div class="plan-project">${escapeHtml(project.name)}</div>`;
+    tasks.forEach(task => {
+      const label = document.createElement('label');
+      label.className = 'plan-row';
+      const checked = isPinnedToday(task) || isCarriedOver(task);
+      label.innerHTML = `
+        <input type="checkbox" value="${escapeHtml(task.id)}" ${checked ? 'checked' : ''} />
+        <span class="plan-text">${escapeHtml(task.text)}${isCarriedOver(task) ? '<span class="plan-note">pinned earlier</span>' : ''}</span>
+        <span class="plan-person">${task.person ? escapeHtml(task.person) : ''}</span>`;
+      block.appendChild(label);
+    });
+    els.planList.appendChild(block);
+  });
+  updatePlanCount();
+  els.planDialog.showModal();
+}
+
+function updatePlanCount() {
+  const n = els.planList.querySelectorAll('input:checked').length;
+  els.planCount.textContent = n ? `${n} picked` : '';
+  els.planDone.textContent = n ? `Pin ${n} for today` : 'Done';
+}
+
+function applyPlanToday() {
+  const picked = new Set([...els.planList.querySelectorAll('input:checked')].map(input => input.value));
+  withUndo('Today planned', () => {
+    allTasks().forEach(({ task }) => {
+      if (task.done) return;
+      setPinned(task, picked.has(task.id));
+    });
+    saveState(false);
+    render();
+  });
+}
+
+// Swipe a task to the right (touch screens) to pin or unpin it.
+function enableSwipeToPin(item, project, task) {
+  if (!isTouchDevice) return;
+  let start = null;
+  let swiping = false;
+  const THRESHOLD = 72;
+  const reset = () => {
+    item.style.transition = 'transform 0.18s ease';
+    item.style.transform = '';
+    item.classList.remove('swiping', 'swipe-ready');
+    setTimeout(() => { item.style.transition = ''; }, 200);
+    start = null;
+    swiping = false;
+  };
+  item.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse' || event.target.closest(TASK_DRAG_IGNORE)) return;
+    start = { x: event.clientX, y: event.clientY, id: event.pointerId };
+  });
+  item.addEventListener('pointermove', event => {
+    if (!start || event.pointerId !== start.id || Drag.isDragging()) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (!swiping) {
+      if (Math.abs(dy) > 10) { start = null; return; }          // scrolling
+      if (dx > 12 && dx > Math.abs(dy) * 1.5) {
+        swiping = true;
+        item.classList.add('swiping');
+        item.dataset.swipeLabel = isPinnedToday(task) ? 'Unpin' : 'Pin for today';
+      } else return;
+    }
+    const x = Math.max(0, Math.min(dx, 130));
+    item.style.transform = `translateX(${x}px)`;
+    item.classList.toggle('swipe-ready', x >= THRESHOLD);
+  });
+  const finish = event => {
+    if (!start || event.pointerId !== start.id) return;
+    const ready = swiping && item.classList.contains('swipe-ready');
+    const wasSwiping = swiping;
+    reset();
+    if (wasSwiping) {
+      // Don't let the end of a swipe also open the task for editing.
+      window.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); }, { capture: true, once: true });
+      setTimeout(() => window.dispatchEvent(new Event('swipe-click-clear')), 400);
+    }
+    if (ready) togglePin(project, task);
+  };
+  item.addEventListener('pointerup', finish);
+  item.addEventListener('pointercancel', finish);
 }
 
 // Task names wrap onto several lines; grow each box to fit its text.
@@ -832,12 +1025,23 @@ function bindTaskEvents(card, project) {
       personMenu.classList.remove('open');
     });
 
+    item.querySelector('.task-pin').addEventListener('click', event => {
+      event.stopPropagation();
+      togglePin(project, task);
+    });
+    enableSwipeToPin(item, project, task);
+
     item.querySelector('.task-more').addEventListener('click', event => {
       event.stopPropagation();
       closeAllPersonMenus();
       const others = state.projects.filter(p => p.id !== project.id);
       const isFirst = project.tasks[0]?.id === taskId;
       ActionMenu.open(event.currentTarget, [
+        {
+          label: isPinnedToday(task) ? 'Unpin from today' : 'Pin for today',
+          disabled: task.done && !isPinnedToday(task),
+          onClick: () => togglePin(project, task)
+        },
         {
           label: 'Move to project',
           disabled: !others.length,
@@ -1017,6 +1221,13 @@ function buildSummaryText() {
   lines.push(`Daily Work Summary - ${now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`);
   lines.push('');
 
+  const pinned = allTasks().filter(({ task }) => isPinnedToday(task));
+  if (pinned.length) {
+    lines.push('Focus today:');
+    pinned.forEach(({ project, task }) => lines.push(`- [${task.done ? 'x' : ' '}] ${task.text} (${project.name}${task.person ? `, @${task.person}` : ''})`));
+    lines.push('');
+  }
+
   if (!state.projects.length) lines.push('No projects captured.');
 
   state.projects.forEach((project, index) => {
@@ -1184,6 +1395,25 @@ els.importFile.addEventListener('change', event => {
 document.addEventListener('click', () => { closeAllPersonMenus(); closePersonFilterDropdown(); });
 
 els.undoBtn.addEventListener('click', event => { event.stopPropagation(); undo(); });
+
+document.getElementById('planTodayBtn').addEventListener('click', openPlanToday);
+document.getElementById('planCancel').addEventListener('click', () => els.planDialog.close());
+els.planList.addEventListener('change', updatePlanCount);
+document.getElementById('planForm').addEventListener('submit', event => {
+  event.preventDefault();
+  els.planDialog.close();
+  applyPlanToday();
+});
+document.getElementById('carryKeep').addEventListener('click', () => withUndo('Kept pinned for today', () => {
+  allTasks().forEach(({ task }) => { if (isCarriedOver(task)) setPinned(task, true); });
+  saveState(false);
+  render();
+}));
+document.getElementById('carryClear').addEventListener('click', () => withUndo('Cleared earlier pins', () => {
+  allTasks().forEach(({ task }) => { if (isCarriedOver(task)) setPinned(task, false); });
+  saveState(false);
+  render();
+}));
 document.addEventListener('keydown', event => {
   const typing = event.target.closest?.('input, textarea, [contenteditable="true"]');
   if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z' && !typing) {

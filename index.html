@@ -149,6 +149,22 @@
 
     <section class="dashboard-grid">
       <section>
+        <!-- Pinned for today (see renderFocus in app.js) -->
+        <section class="focus-panel" id="focusPanel">
+          <div class="focus-head">
+            <h2><span class="focus-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l-1 5 3.5 3.5H6.5L10 8.5z"/><path d="M12 12v8.5"/></svg></span>Pinned for today <span class="focus-count" id="focusCount"></span></h2>
+            <button type="button" class="btn-secondary btn-small" id="planTodayBtn">Plan today</button>
+          </div>
+          <div class="focus-carry" id="focusCarry" hidden>
+            <span id="focusCarryText"></span>
+            <span class="focus-carry-actions">
+              <button type="button" class="btn-small" id="carryKeep">Keep</button>
+              <button type="button" class="btn-secondary btn-small" id="carryClear">Clear</button>
+            </span>
+          </div>
+          <ul class="focus-list" id="focusList"></ul>
+          <p class="focus-empty" id="focusEmpty">Pin the few tasks you want in front of you today: use <b>Plan today</b>, the pin on a task, or <b>⋯ → Pin for today</b>.</p>
+        </section>
         <div class="project-list" id="projectList"></div>
         <div class="empty-state" id="emptyState">No projects yet. Add your first project to begin planning the day.</div>
       </section>
@@ -217,6 +233,21 @@
         <button type="button" class="btn-danger" id="pinRemove">Remove PIN</button>
         <button type="button" class="btn-secondary" id="pinCancel">Cancel</button>
         <button type="submit">Save PIN</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="pin-dialog plan-dialog" id="planDialog">
+    <form method="dialog" id="planForm">
+      <div class="plan-head">
+        <h2>Plan today</h2>
+        <span class="subtle" id="planCount"></span>
+      </div>
+      <p class="subtle">Tick the tasks you want pinned for today.</p>
+      <div class="plan-list" id="planList"></div>
+      <div class="pin-dialog-actions">
+        <button type="button" class="btn-secondary" id="planCancel">Cancel</button>
+        <button type="submit" id="planDone">Done</button>
       </div>
     </form>
   </dialog>
