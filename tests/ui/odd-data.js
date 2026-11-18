@@ -7,6 +7,7 @@ const base = { projects: [
     { id: 't4', text: 'pinned today', done: false, person: 'A  B', pinnedOn: new Date().toLocaleDateString('en-CA') } ] },
   { id: 'p2', name: '', collapsed: true, tasks: [] } ],
   people: [`D'Souza`, 'Zoë Ångström', 'A  B', '  ', 'x"y'], usualLeaveTime: '17:30', leaveTime: '', leaveDate: '', dayNotes: '' };
+const ok = (c, m) => { console.log(`${c ? 'PASS' : 'FAIL'}  ${m}`); if (!c) process.exitCode = 1; };
 const views = ['all', 'pinned', 'project:p1', 'project:gone', `person:D'Souza`, 'person:x"y', 'person:Nobody', 'unassigned', 'weird'];
 (async () => {
   const b = await chromium.launch();
@@ -18,9 +19,8 @@ const views = ['all', 'pinned', 'project:p1', 'project:gone', `person:D'Souza`, 
     await p.goto('http://localhost:8123/'); await p.waitForTimeout(250);
     await p.locator('#menuBtn').click(); await p.waitForTimeout(100); await p.keyboard.press('Escape'); await p.waitForTimeout(100);
     const closed = !(await p.evaluate(() => document.getElementById('menuDialog').open));
-    if (errs.length || !closed) console.log(vw, view, tab, 'closed=' + closed, errs);
+    ok(!errs.length && closed, `${vw}, view ${view}, ${tab} tab: opens without errors and Esc closes the menu ${errs.join('; ')}`);
     await c.close();
   }
-  console.log('done');
   await b.close();
 })();

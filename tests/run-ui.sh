@@ -20,7 +20,6 @@ pin-remove:-
 redesign:big
 session:-
 sync:big:cloud
-topbar:big
 drag-and-menus:big
 undo:big
 fixes:small
