@@ -2089,7 +2089,6 @@ html, body { overflow-x: clip; }
 .person-option.active, .person-add.active,
 .mention-option.on, .mention-option.on:hover { background: #111827; color: #fff; }
 .person-add.active { border-color: #111827; }
-.person-option.active .person-remove { color: #fca5a5; }
 .mention-option.on .pav { background: #374151; color: #fff; }
 .mention-option.on .pav.new { background: transparent; border-color: #9ca3af; color: #fff; }
 .mention-option.on .mention-count { color: #cbd5e1; }
@@ -2099,3 +2098,9 @@ html, body { overflow-x: clip; }
 .action-menu-item.has-submenu:focus-visible::after { color: #cbd5e1; }
 /* The @ list must not be cut off by the quick-add box */
 #addDialog { overflow: visible; }
+
+/* Name picker: the × to remove a name is plain dark, white on the highlighted row */
+.person-remove { color: #374151; }
+.person-remove:hover { background: #e5e7eb; color: #111827; }
+.person-option.active .person-remove { color: #fff; }
+.person-option.active .person-remove:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }

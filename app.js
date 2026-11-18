@@ -1802,6 +1802,36 @@ saveState(false);
 setInterval(formatDateTime, 1000);
 
 // No zooming: the app always fits the screen.
+// Esc closes an open name picker wherever the cursor is inside it (typing box,
+// its buttons, or after clicking a blank spot), and returns to the name button.
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  const open = document.querySelector('.person-menu.open');
+  if (!open) return;
+  event.preventDefault();
+  open.classList.remove('open');
+  open.closest('.person-wrap')?.querySelector('.person-field')?.focus();
+});
+
+// Esc everywhere else: close the top pop-up (quick add, menu, leaving time,
+// Plan today, …) ourselves rather than relying on the browser, which doesn't
+// always do it; and in the notes box, Esc leaves the box.
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
+  if (document.querySelector('.action-menu, .person-menu.open')) return;
+  const dialogs = [...document.querySelectorAll('dialog[open]')];
+  const top = dialogs[dialogs.length - 1];
+  if (top) {
+    event.preventDefault();
+    top.close();
+    return;
+  }
+  if (event.target === els.dayNotes) {
+    event.preventDefault();
+    els.dayNotes.blur();
+  }
+});
+
 // Arrow keys move between the options in a group (chips, time choices, the
 // side list, the menu, Plan today). Enter or Space then picks the option.
 ['rail', 'chips', 'tabbar', 'timeChips', 'addProjects', 'planList', 'menuDialog']

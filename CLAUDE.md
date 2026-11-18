@@ -64,6 +64,9 @@ Key details:
   person picker and @-suggestions. Keep that working for new lists: the
   selected option must be clearly visible (dark fill #111827, white text),
   Enter picks it, Esc closes and returns focus to where you were.
+- Esc must close every pop-up wherever the cursor is inside it. app.js closes
+  the top open `<dialog>` itself on Esc (don't rely on the browser), closes an
+  open name picker, and leaves the notes box. New pop-ups need the same.
 - Samsung keyboards show "Send"/"Go" instead of Enter: put single text boxes in
   a `<form>` and handle `submit`, or offer a tappable button.
 
