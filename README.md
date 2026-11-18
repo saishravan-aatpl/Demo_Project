@@ -49,7 +49,7 @@ and still open are offered to **Keep** or **Clear**.
 
 **Overview**: on a laptop, the left list shows all projects and people with open counts
 (click one to see only that); on a phone, the chips row does the same and the **People**
-tab groups open tasks by person. Projects fold to one line ("2 open · Sai, Sachin");
+tab groups open tasks by person. Projects fold to one line ("2 open · Sam, Sage");
 **Collapse all / Expand all**. The app doesn't zoom: it always fits the screen.
 
 **Moving things**: drag a task (phone: press and hold) into any project; drag a project by

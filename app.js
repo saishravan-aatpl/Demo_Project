@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'officeDailyDashboard.stable.v2';
-window.WORKSTACK_BUILD = 'v23';
+window.WORKSTACK_BUILD = 'v24';
 const LEGACY_STORAGE_KEYS = [
   'officeDailyDashboard.stable.v1',
   'officeProjectDashboard.v2',
@@ -1439,12 +1439,12 @@ function buildSummaryText() {
 
 
 // ---------- quick add (+) ----------
-// "Send RFQ @Prashanth" -> text "Send RFQ", person "Prashanth" (matches an existing name if there is one).
+// "Send quote @Priya" -> text "Send quote", person "Priya" (matches an existing name if there is one).
 function parseTaskText(raw) {
   let text = String(raw || '');
   let person = '';
   const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // Known people first (longest names first, so "Sai Kumar" wins over "Sai").
+  // Known people first (longest names first, so "Sam Lee" wins over "Sam").
   for (const name of [...state.people].sort((a, b) => b.length - a.length)) {
     const pattern = new RegExp(`(^|\\s)@${escape(name)}(?=\\s|$)`, 'i');
     if (pattern.test(text)) { person = name; text = text.replace(pattern, '$1'); break; }
