@@ -16,7 +16,6 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 | `lock.js` | Optional PIN lock screen for this device. |
 | `drag.js` | Smooth drag-to-reorder for tasks and projects (mouse and touch). |
 | `menu.js` | The small pop-up menus behind the ⋯ buttons. |
-| `topbar.js` | The slim bar that slides in when you scroll, and pulling the header down from it. |
 | `sync.js` | Cloud sync: sign-in (email + password), saving, live updates, offline catch-up. |
 | `merge.js` | Combines changes made on two devices at the same time. |
 | `config.js` | The two Supabase values sync needs (both safe to publish). |
@@ -32,17 +31,31 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 
 ## Using it
 
-- **Header:** full size at the top, scrolls away normally. Further down, a slim bar
-  (time, time left, View) slides in. Tap it to pull the full header down; scroll,
-  tap outside or tap ⌃ to put it away.
+**Top bar** (always there): the time, a **time-left pill**, copy-summary, **+ Add**, and your
+initial (the **menu**).
 
-- **Edit a task:** tap or click its name; Enter saves, Escape cancels.
-- **Move a task:** on a phone, press and hold it, then drag (into any project, even a
-  collapsed one). With a mouse, just drag it. Or use **⋯ → Move to project / Move to top**.
-- **Move a project:** drag it by **☰**.
-- **Collapse or delete a project / delete a task:** the **⋯** button.
-- **Undo:** deleting, moving or importing shows an **Undo** button for a few seconds
-  (up to 20 steps back; Ctrl/Cmd+Z on a laptop).
+- **Time-left pill**: the ring fills as the day goes; dark in your last hour, soft red once
+  you're past leaving time. Tap it to change **today's** leaving time (quick picks).
+  Every new day starts from your **usual leaving time** (set in the menu).
+- **+ / Add** (or press **N** on a laptop): add a task or a project. Type `@name` to assign
+  someone, tap the project, optionally *Pin for today*.
+- **Menu**: account and sync status, usual leaving time, lock/PIN, export/import backup,
+  change password, sign out.
+
+**Pinned for today**: the few tasks you want in front of you today, at the top.
+Pin with the pin on a task (laptop: hover), *⋯ → Pin for today*, swiping a task right
+(phone), or **Plan today** to tick several at once. Next morning, tasks pinned earlier
+and still open are offered to **Keep** or **Clear**.
+
+**Overview**: on a laptop, the left list shows all projects and people with open counts
+(click one to see only that); on a phone, the chips row does the same and the **People**
+tab groups open tasks by person. Projects fold to one line ("2 open · Sai, Sachin");
+**Collapse all / Expand all**. Laptop search: press **/**.
+
+**Moving things**: drag a task (phone: press and hold) into any project; drag a project by
+its header; or use *⋯ → Move to project / Move to top*. Tap a task or project name to edit it.
+
+**Undo**: deleting, moving or importing shows **Undo** for a few seconds (Ctrl/Cmd+Z on a laptop).
 
 ## PIN lock
 

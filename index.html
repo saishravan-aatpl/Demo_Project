@@ -8,7 +8,7 @@
 
   <!-- Makes the site installable as an app ("Add to Home Screen") -->
   <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#f3f4f6" />
+  <meta name="theme-color" content="#ffffff" />
   <link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32" />
 
@@ -72,143 +72,159 @@
   </div>
 
   <main class="app">
-    <!-- Full header: part of the page, scrolls away normally. -->
-    <header class="page-header" id="pageHeader">
-      <section class="top-panel">
-        <h1>Workstack</h1>
-        <div class="time-cards">
-          <div class="now-card">
-            <strong id="currentTime">Time</strong>
-            <span class="subtle" id="todayDate">Today</span>
-          </div>
-          <div class="remaining">
-            <strong id="remainingTime">--</strong>
-            <span class="subtle" id="remainingMessage">Set your leaving time.</span>
-          </div>
-        </div>
-        <div class="leave-row">
-          <label for="leaveTime">Leaving for the day</label>
-          <input type="time" id="leaveTime" step="300" />
-          <span class="subtle" id="leaveHint">Visible time is shown above in AM/PM format.</span>
-          <button class="btn-secondary copy-summary-top" id="copySummaryBtn" type="button">Copy Summary</button>
-        </div>
-      </section>
-
-      <section class="control-card new-project-panel">
-        <form class="add-project-form" id="addProjectForm">
-          <input type="text" id="projectName" placeholder="New Project Title" autocomplete="off" aria-label="New Project Title" />
-          <button type="submit">Add Project</button>
-        </form>
-      </section>
-
-      <section class="people-panel control-card">
-        <div class="people-controls">
-          <div class="person-filter-wrap">
-            <div class="person-select" id="personSelect">
-              <button class="person-select-button" id="personSelectButton" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span class="person-select-label" id="personSelectLabel">All</span>
-                <span class="person-select-count" id="personSelectCount"></span>
-              </button>
-              <div class="person-select-menu" id="personSelectMenu" role="listbox"></div>
-            </div>
-            <select id="personFilter" hidden></select>
-          </div>
-          <label class="open-only-wrap" for="peopleOpenOnly">
-            <input type="checkbox" id="peopleOpenOnly" />
-            Open only
-          </label>
-        </div>
-      </section>
-      <button class="header-collapse" id="headerCollapse" type="button" aria-label="Hide the full header"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    </header>
-    <div class="page-header-placeholder" id="headerPlaceholder"></div>
-
-    <!-- Slim bar: slides in once the time cards have scrolled out of view (see topbar.js).
-         Tap it to slide the full header down from the top. -->
-    <div class="slimbar" id="slimbar" aria-hidden="true">
-      <div class="slimbar-surface">
-        <button class="slimbar-row" id="slimbarToggle" type="button" aria-label="Show the full header" tabindex="-1">
-          <span class="sb-clock" id="sbClock"></span>
-          <span class="sb-date" id="sbDate"></span>
-          <span class="sb-left" id="sbLeft"></span>
-          <span class="sb-spacer"></span>
-          <span class="sb-view" id="sbViewLabel">View: All</span>
-          <span class="sb-chevron"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <!-- App bar: always at the top, the same on phone and laptop -->
+    <header class="appbar" id="appbar">
+      <div class="appbar-inner">
+        <img src="icons/icon.svg" alt="" class="ab-logo" />
+        <span class="ab-brand">Workstack</span>
+        <span class="ab-clock" id="currentTime"></span>
+        <span class="ab-date" id="todayDate"></span>
+        <button type="button" class="time-pill" id="timePill" aria-haspopup="dialog" title="Leaving time">
+          <svg class="ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="ring-track" cx="10" cy="10" r="7"/><circle class="ring-fill" id="ringFill" cx="10" cy="10" r="7"/></svg>
+          <span id="remainingTime">--</span><span class="pill-word" id="remainingWord"></span>
         </button>
+        <span class="ab-spacer"></span>
+        <label class="ab-search" id="searchBox">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+          <input type="search" id="searchInput" placeholder="Search tasks" autocomplete="off" aria-label="Search tasks" />
+          <kbd>/</kbd>
+        </label>
+        <button type="button" class="icon-btn" id="copySummaryBtn" title="Copy today's summary" aria-label="Copy today's summary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg></button>
+        <button type="button" class="ab-add" id="addBtn" title="Add a task or project (N)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button>
+        <button type="button" class="avatar" id="menuBtn" aria-haspopup="dialog" aria-label="Menu"><span id="avatarInitial"></span><span class="avatar-dot" id="avatarDot"></span></button>
       </div>
-    </div>
-    <div class="slimbar-backdrop" id="slimbarBackdrop"></div>
-
-    <section class="people-results results-panel" id="peopleResults">
-      <div class="people-results-title">
-        <h2 id="peopleResultsTitle">Tasks linked to person</h2>
-        <span class="subtle" id="peopleResultsCount">0 tasks</span>
+      <div class="offline-strip" id="offlineStrip" hidden>
+        <span><b>Offline mode:</b> this dashboard is only on this device.</span>
+        <button type="button" class="link-btn" id="offlineSignIn">Sign in</button>
       </div>
-      <div class="people-task-list" id="peopleTaskList"></div>
-    </section>
+    </header>
 
-    <section class="dashboard-grid">
-      <section>
+    <div class="layout" id="layout">
+      <!-- Laptop: everything you can show, with counts -->
+      <nav class="rail" id="rail" aria-label="Show"></nav>
+
+      <section class="col-main" id="colMain">
+        <!-- Phone: the same choices as chips -->
+        <div class="chips" id="chips" role="tablist" aria-label="Show"></div>
+
+        <div class="view-title" id="viewTitle" hidden>
+          <h2 id="viewTitleText"></h2>
+          <button type="button" class="link-btn" id="viewClear">Show all</button>
+        </div>
+
         <!-- Pinned for today (see renderFocus in app.js) -->
         <section class="focus-panel" id="focusPanel">
-          <div class="focus-head">
-            <h2><span class="focus-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l-1 5 3.5 3.5H6.5L10 8.5z"/><path d="M12 12v8.5"/></svg></span>Pinned for today <span class="focus-count" id="focusCount"></span></h2>
-            <button type="button" class="btn-secondary btn-small" id="planTodayBtn">Plan today</button>
+          <div class="sec-head">
+            <h2 class="sec-title"><span class="sec-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l-1 5 3.5 3.5H6.5L10 8.5z"/><path d="M12 12v8.5"/></svg></span>Pinned for today <span class="focus-count" id="focusCount"></span></h2>
+            <button type="button" class="link-btn" id="planTodayBtn">Plan today</button>
           </div>
-          <div class="focus-carry" id="focusCarry" hidden>
-            <span id="focusCarryText"></span>
-            <span class="focus-carry-actions">
-              <button type="button" class="btn-small" id="carryKeep">Keep</button>
-              <button type="button" class="btn-secondary btn-small" id="carryClear">Clear</button>
-            </span>
+          <div class="focus-card">
+            <div class="focus-carry" id="focusCarry" hidden>
+              <span id="focusCarryText"></span>
+              <span class="focus-carry-actions">
+                <button type="button" class="btn-small" id="carryKeep">Keep</button>
+                <button type="button" class="btn-secondary btn-small" id="carryClear">Clear</button>
+              </span>
+            </div>
+            <ul class="focus-list" id="focusList"></ul>
+            <p class="focus-empty" id="focusEmpty">Pin the few tasks you want in front of you today: <b>Plan today</b>, the pin on a task, or <b>⋯ → Pin for today</b>.</p>
           </div>
-          <ul class="focus-list" id="focusList"></ul>
-          <p class="focus-empty" id="focusEmpty">Pin the few tasks you want in front of you today: use <b>Plan today</b>, the pin on a task, or <b>⋯ → Pin for today</b>.</p>
         </section>
+
+        <div class="sec-head" id="listHead">
+          <h2 class="sec-title" id="listTitle">Projects</h2>
+          <button type="button" class="link-btn" id="toggleAllBtn">Collapse all</button>
+        </div>
         <div class="project-list" id="projectList"></div>
-        <div class="empty-state" id="emptyState">No projects yet. Add your first project to begin planning the day.</div>
+        <div class="empty-state" id="emptyState">No projects yet. Tap <b>+</b> to add your first one.</div>
+        <div class="empty-state" id="noMatches" hidden>Nothing matches.</div>
       </section>
 
-      <aside class="side-stack">
-        <section class="summary-panel">
-          <h2>Day Snapshot</h2>
-          <div class="metric"><span>Projects</span><strong id="projectCount">0</strong></div>
-          <div class="metric"><span>Open tasks</span><strong id="openTaskCount">0</strong></div>
-          <div class="metric"><span>Completed tasks</span><strong id="doneTaskCount">0</strong></div>
-          <div class="metric"><span>Completion</span><strong id="completionRate">0%</strong></div>
-        </section>
+      <!-- Phone: People tab -->
+      <section class="col-people" id="colPeople">
+        <div class="sec-head"><h2 class="sec-title">People</h2><span class="subtle">open tasks</span></div>
+        <div class="people-list" id="peopleList"></div>
+      </section>
 
-        <section class="sync-panel" id="syncPanel" hidden>
-          <h2>Cloud Sync</h2>
-          <div id="syncSignedOut">
-            <p class="offline-warning"><strong>Offline mode.</strong> Your dashboard is only on this device and isn't backed up. Sign in to keep it safe and use it on your other devices.</p>
-            <button type="button" id="syncSignInBtn">Sign in</button>
-          </div>
-          <div id="syncSignedIn" hidden>
-            <div class="sync-account" id="syncEmail"></div>
-            <div class="sync-status" id="syncStatus" data-state="syncing">Syncing…</div>
-            <div class="sync-actions">
-              <button class="btn-secondary btn-small" id="syncChangePassword" type="button">Change password</button>
-              <button class="btn-secondary btn-small" id="syncSignOut" type="button">Sign out</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="notes-panel">
-          <h2>End-of-Day Notes</h2>
-          <textarea id="dayNotes" placeholder="What moved? What is blocked? What should carry forward tomorrow?"></textarea>
-          <div class="footer-actions">
-            <button class="btn-secondary" id="exportBtn" type="button">Export Backup</button>
-            <button class="btn-secondary" id="importBtn" type="button">Import Backup</button>
-            <input type="file" id="importFile" accept="application/json" hidden />
-            <button class="btn-secondary" id="pinBtn" type="button">Set PIN</button>
-            <button class="btn-secondary" id="lockNowBtn" type="button" hidden>Lock now</button>
-          </div>
-          <div class="save-status" id="saveStatus">Local save initializing...</div>
+      <!-- Laptop: right column. Phone: Notes tab -->
+      <aside class="col-notes" id="colNotes">
+        <section class="notes-card">
+          <h2>Today</h2>
+          <div class="progress" aria-hidden="true"><i id="progressFill"></i></div>
+          <div class="subtle" id="progressText"></div>
+          <h2 class="notes-title">End-of-day notes</h2>
+          <textarea id="dayNotes" placeholder="What moved? What is blocked? What carries over to tomorrow?"></textarea>
+          <div class="save-status" id="saveStatus">Saving…</div>
         </section>
       </aside>
-    </section>
+    </div>
+
+    <!-- Phone only -->
+    <button type="button" class="fab" id="fabAdd" aria-label="Add a task or project"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    <nav class="tabbar" id="tabbar" aria-label="Sections">
+      <button type="button" data-tab="projects"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="9" width="16" height="11" rx="3"/><path d="M7 5.5h10M8.5 13.5l2.5 2.5 4.5-4.5"/></svg><span>Projects</span></button>
+      <button type="button" data-tab="people"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.6-3.5 3-5.5 6-5.5s5.4 2 6 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M17 14.5c2.2.2 3.6 1.8 4 4.5"/></svg><span>People</span></button>
+      <button type="button" data-tab="notes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h9l4 4V20a.5.5 0 0 1-.5.5h-12A.5.5 0 0 1 6 20z"/><path d="M9 11h7M9 15h5"/></svg><span>Notes</span></button>
+    </nav>
   </main>
+
+  <!-- Leaving time (opens from the time pill) -->
+  <dialog class="sheet" id="timeDialog">
+    <form method="dialog" class="sheet-body">
+      <div class="sheet-head"><h2 id="timeTitle">Leaving today</h2><span class="subtle" id="remainingMessage"></span></div>
+      <div class="time-chips" id="timeChips"></div>
+      <label class="time-other"><span>Other time</span><input type="time" id="leaveTime" step="300" /></label>
+      <p class="subtle sheet-note" id="timeNote"></p>
+    </form>
+  </dialog>
+
+  <!-- Quick add (opens from + / Add / N) -->
+  <dialog class="sheet" id="addDialog">
+    <form class="sheet-body" id="addForm" autocomplete="off">
+      <div class="seg" role="tablist">
+        <button type="button" class="on" data-mode="task">Task</button>
+        <button type="button" data-mode="project">Project</button>
+      </div>
+      <input type="text" id="addText" placeholder="What needs doing? (@name assigns)" enterkeyhint="done" />
+      <div id="addTaskOptions">
+        <div class="add-label">Add to</div>
+        <div class="add-projects" id="addProjects"></div>
+        <select id="addProjectMore" aria-label="Choose another project" hidden></select>
+      </div>
+      <div class="add-foot">
+        <label class="pin-toggle" id="addPinWrap"><input type="checkbox" id="addPin" /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l-1 5 3.5 3.5H6.5L10 8.5z"/><path d="M12 12v8.5"/></svg><span>Pin for today</span></label>
+        <span class="add-hint subtle">Enter to add</span>
+        <button type="submit" id="addSubmit">Add</button>
+      </div>
+      <div class="lock-error" id="addError" role="alert"></div>
+    </form>
+  </dialog>
+
+  <!-- Menu (opens from your initial) -->
+  <dialog class="sheet" id="menuDialog">
+    <div class="sheet-body menu-body">
+      <section class="menu-account" id="syncPanel" hidden>
+        <div id="syncSignedOut">
+          <div class="menu-who"><span class="avatar big offline">!</span><div><b>Offline mode</b><div class="subtle">Only on this device, not backed up.</div></div></div>
+          <button type="button" id="syncSignInBtn">Sign in</button>
+        </div>
+        <div id="syncSignedIn" hidden>
+          <div class="menu-who"><span class="avatar big"><span id="menuInitial"></span></span><div><b id="syncEmail"></b><div class="sync-status" id="syncStatus" data-state="syncing">Syncing…</div></div></div>
+        </div>
+      </section>
+      <div class="menu-head">Day</div>
+      <button type="button" class="menu-row" id="usualLeaveBtn">Usual leaving time <span id="usualLeaveLabel"></span></button>
+      <div class="menu-head">This device</div>
+      <button type="button" class="menu-row" id="lockNowBtn" hidden>Lock now</button>
+      <button type="button" class="menu-row" id="pinBtn">Set PIN</button>
+      <div class="menu-head">Data &amp; account</div>
+      <button type="button" class="menu-row" id="exportBtn">Export backup</button>
+      <button type="button" class="menu-row" id="importBtn">Import backup</button>
+      <input type="file" id="importFile" accept="application/json" hidden />
+      <button type="button" class="menu-row" id="syncChangePassword" data-when="signed-in" hidden>Change password</button>
+      <button type="button" class="menu-row danger" id="syncSignOut" data-when="signed-in" hidden>Sign out</button>
+    </div>
+  </dialog>
 
   <div class="toast" id="toast">Saved</div>
   <div class="undo-toast" id="undoToast" role="status" aria-live="polite">
@@ -301,7 +317,6 @@
   <script src="menu.js"></script>
   <script src="drag.js"></script>
   <script src="app.js"></script>
-  <script src="topbar.js"></script>
   <script src="sync.js"></script>
 </body>
 </html>

@@ -89,12 +89,21 @@
     const el = $('syncStatus');
     el.textContent = messages[kind] || detail;
     el.dataset.state = kind;
+    $('avatarDot').dataset.state = kind;      // the small dot on your initial in the top bar
   }
 
   function renderPanel() {
     $('syncSignedOut').hidden = Boolean(user);
     $('syncSignedIn').hidden = !user;
     $('syncEmail').textContent = user ? user.email : '';
+    document.querySelectorAll('[data-when="signed-in"]').forEach(el => { el.hidden = !user; });
+    const initial = user ? user.email.trim()[0].toUpperCase() : '';
+    $('avatarInitial').textContent = initial;
+    $('menuInitial').textContent = initial;
+    $('menuBtn').classList.toggle('offline', !user);
+    $('menuBtn').setAttribute('aria-label', user ? `Menu (${user.email})` : 'Menu (offline mode)');
+    if (!user) $('avatarDot').dataset.state = 'none';
+    $('offlineStrip').hidden = Boolean(user);
   }
 
   // ---------- talking to the cloud ----------

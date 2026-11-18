@@ -123,8 +123,12 @@
   const todayKey = () => new Date().toLocaleDateString('en-CA');   // e.g. 2026-11-17
 
   function leaveTimeToday() {
-    let value = window.dashboardApp?.getData().leaveTime;
-    if (!value) value = readJson(STATE_KEY)?.leaveTime;
+    // Today's leaving time: changed for today, or else the usual time (see app.js).
+    let value = window.dashboardApp?.getLeaveTimeToday?.();
+    if (!value) {
+      const saved = readJson(STATE_KEY) || {};
+      value = saved.leaveDate === todayKey() ? saved.leaveTime : (saved.usualLeaveTime || saved.leaveTime);
+    }
     const [hours, minutes] = String(value || '17:00').split(':').map(Number);
     const leave = new Date();
     leave.setHours(Number.isFinite(hours) ? hours : 17, Number.isFinite(minutes) ? minutes : 0, 0, 0);

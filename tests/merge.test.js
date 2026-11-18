@@ -4,7 +4,7 @@ const { merge } = require('../merge.js');
 
 const task = (id, text, extra = {}) => ({ id, text, done: false, person: '', ...extra });
 const project = (id, name, tasks, extra = {}) => ({ id, name, collapsed: false, tasks, ...extra });
-const data = (projects, extra = {}) => ({ projects, people: [], leaveTime: '17:00', dayNotes: '', ...extra });
+const data = (projects, extra = {}) => ({ projects, people: [], usualLeaveTime: '17:00', leaveTime: '17:00', leaveDate: '', dayNotes: '', ...extra });
 const copy = x => JSON.parse(JSON.stringify(x));
 
 const base = data([
@@ -79,6 +79,30 @@ test('First sync with different data on each device: union of both', () => {
 
 test('Nothing changed anywhere: result equals base', () => {
   assert.deepEqual(merge(base, copy(base), copy(base)), base);
+});
+
+test('Pinning on one device and ticking on another: both kept', () => {
+  const a = copy(base); a.projects[0].tasks[1].pinnedOn = '2026-11-18';
+  const b = copy(base); b.projects[0].tasks[1].done = true;
+  const out = merge(base, a, b);
+  assert.equal(out.projects[0].tasks[1].pinnedOn, '2026-11-18');
+  assert.equal(out.projects[0].tasks[1].done, true);
+});
+
+test('Unpinning on one device is kept', () => {
+  const pinnedBase = copy(base); pinnedBase.projects[0].tasks[0].pinnedOn = '2026-11-18';
+  const a = copy(pinnedBase); delete a.projects[0].tasks[0].pinnedOn;
+  const out = merge(pinnedBase, a, copy(pinnedBase));
+  assert.equal(out.projects[0].tasks[0].pinnedOn, undefined);
+});
+
+test("Today's leaving time and the usual time sync independently", () => {
+  const a = copy(base); a.leaveTime = '18:30'; a.leaveDate = '2026-11-18';
+  const b = copy(base); b.usualLeaveTime = '17:30';
+  const out = merge(base, a, b);
+  assert.equal(out.leaveTime, '18:30');
+  assert.equal(out.leaveDate, '2026-11-18');
+  assert.equal(out.usualLeaveTime, '17:30');
 });
 
 console.log(`\n${passed} merge tests passed`);

@@ -14,6 +14,7 @@
 //   handle        optional selector inside the element that starts a drag at once
 //   wholeItem     true = press anywhere on the element (except `ignore`) to drag
 //   ignore        selector for controls that must keep working (buttons, inputs…)
+//   area          optional: only presses inside this part of the element count
 //   resolveDrop(x, y, el)  -> { list, before, highlight? } where the gap should go,
 //                             or { dropInto, highlight } to drop into a list without
 //                             moving the gap (used for collapsed projects, so the page
@@ -44,6 +45,8 @@ const Drag = (() => {
       if (event.button !== 0 || pending || active) return;
       const onHandle = Boolean(opts.handle && event.target.closest(opts.handle));
       if (!onHandle && (!opts.wholeItem || (opts.ignore && event.target.closest(opts.ignore)))) return;
+      // `area`: only presses inside this part of the element start a drag (e.g. a project's header).
+      if (!onHandle && opts.area && !event.target.closest(opts.area)) return;
 
       const isTouch = event.pointerType !== 'mouse';
       pending = { el, opts, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, isTouch, timer: null };
@@ -188,7 +191,7 @@ const Drag = (() => {
     clearInterval(active.scrollTimer);
     const y = active.y;
     // The pinned header covers the top of the screen, so the scroll zone starts below it.
-    const top = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')) || 0) + EDGE;
+    const top = (document.getElementById('appbar')?.getBoundingClientRect().bottom || 0) + EDGE;
     const speed = y < top ? -Math.ceil((top - y) / 6) : y > window.innerHeight - EDGE ? Math.ceil((y - (window.innerHeight - EDGE)) / 6) : 0;
     if (!speed) return;
     active.scrollTimer = setInterval(() => {

@@ -12,7 +12,7 @@
 // Only the synced data is merged: projects, tasks, people, leave time and notes.
 
 (function (root) {
-  const SYNCED_FIELDS = ['projects', 'people', 'leaveTime', 'dayNotes'];
+  const SYNCED_FIELDS = ['projects', 'people', 'usualLeaveTime', 'leaveTime', 'leaveDate', 'dayNotes'];
   const PROJECT_FIELDS = ['name', 'collapsed', 'priority'];
   const TASK_FIELDS = ['text', 'done', 'person', 'pinnedOn'];
 
@@ -20,7 +20,7 @@
   const clone = value => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
 
   function emptyData() {
-    return { projects: [], people: [], leaveTime: '', dayNotes: '' };
+    return { projects: [], people: [], usualLeaveTime: '', leaveTime: '', leaveDate: '', dayNotes: '' };
   }
 
   // Pick the right value for one field.
@@ -117,7 +117,9 @@
     return {
       projects: mergeList(base.projects || [], local.projects || [], remote.projects || [], mergeProject),
       people: mergePeople(base.people || [], local.people || [], remote.people || []),
+      usualLeaveTime: pick(base.usualLeaveTime, local.usualLeaveTime, remote.usualLeaveTime) || '',
       leaveTime: pick(base.leaveTime, local.leaveTime, remote.leaveTime) || '',
+      leaveDate: pick(base.leaveDate, local.leaveDate, remote.leaveDate) || '',
       dayNotes: pick(base.dayNotes, local.dayNotes, remote.dayNotes) || ''
     };
   }

@@ -12,10 +12,13 @@ const embeddedInitialState = {};
 const defaultState = {
   projects: [],
   people: [],
-  leaveTime: '17:00',
+  usualLeaveTime: '17:00',   // set once in the menu
+  leaveTime: '17:00',        // today's leaving time, if changed for today...
+  leaveDate: '',             // ...on this day (YYYY-MM-DD); other days use usualLeaveTime
   dayNotes: '',
-  personFilter: 'all',
-  peopleOpenOnly: true
+  view: 'all',               // what the main list shows (this device only)
+  tab: 'projects',           // phone tab (this device only)
+  lastProjectId: ''          // quick add remembers the last project used
 };
 
 let storageAvailable = checkStorageAvailable();
@@ -23,51 +26,73 @@ let state = loadState();
 let toastTimer = null;
 const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
+const $id = id => document.getElementById(id);
 const els = {
-  todayDate: document.getElementById('todayDate'),
-  currentTime: document.getElementById('currentTime'),
-  leaveTime: document.getElementById('leaveTime'),
-  remainingTime: document.getElementById('remainingTime'),
-  remainingMessage: document.getElementById('remainingMessage'),
-  addProjectForm: document.getElementById('addProjectForm'),
-  projectName: document.getElementById('projectName'),
-  projectList: document.getElementById('projectList'),
-  emptyState: document.getElementById('emptyState'),
-  projectCount: document.getElementById('projectCount'),
-  openTaskCount: document.getElementById('openTaskCount'),
-  doneTaskCount: document.getElementById('doneTaskCount'),
-  completionRate: document.getElementById('completionRate'),
-  dayNotes: document.getElementById('dayNotes'),
-  copySummaryBtn: document.getElementById('copySummaryBtn'),
-  exportBtn: document.getElementById('exportBtn'),
-  importBtn: document.getElementById('importBtn'),
-  importFile: document.getElementById('importFile'),
-  saveStatus: document.getElementById('saveStatus'),
-  personFilter: document.getElementById('personFilter'),
-  personSelect: document.getElementById('personSelect'),
-  personSelectButton: document.getElementById('personSelectButton'),
-  personSelectLabel: document.getElementById('personSelectLabel'),
-  personSelectCount: document.getElementById('personSelectCount'),
-  personSelectMenu: document.getElementById('personSelectMenu'),
-  peopleOpenOnly: document.getElementById('peopleOpenOnly'),
-  peopleResults: document.getElementById('peopleResults'),
-  peopleResultsTitle: document.getElementById('peopleResultsTitle'),
-  peopleResultsCount: document.getElementById('peopleResultsCount'),
-  peopleTaskList: document.getElementById('peopleTaskList'),
-  toast: document.getElementById('toast'),
-  undoToast: document.getElementById('undoToast'),
-  focusPanel: document.getElementById('focusPanel'),
-  focusList: document.getElementById('focusList'),
-  focusCount: document.getElementById('focusCount'),
-  focusEmpty: document.getElementById('focusEmpty'),
-  focusCarry: document.getElementById('focusCarry'),
-  focusCarryText: document.getElementById('focusCarryText'),
-  planDialog: document.getElementById('planDialog'),
-  planList: document.getElementById('planList'),
-  planCount: document.getElementById('planCount'),
-  planDone: document.getElementById('planDone'),
-  undoMessage: document.getElementById('undoMessage'),
-  undoBtn: document.getElementById('undoBtn')
+  appbar: $id('appbar'),
+  todayDate: $id('todayDate'),
+  currentTime: $id('currentTime'),
+  timePill: $id('timePill'),
+  ringFill: $id('ringFill'),
+  remainingTime: $id('remainingTime'),
+  remainingWord: $id('remainingWord'),
+  remainingMessage: $id('remainingMessage'),
+  timeDialog: $id('timeDialog'),
+  timeTitle: $id('timeTitle'),
+  timeChips: $id('timeChips'),
+  timeNote: $id('timeNote'),
+  leaveTime: $id('leaveTime'),
+  searchInput: $id('searchInput'),
+  copySummaryBtn: $id('copySummaryBtn'),
+  addBtn: $id('addBtn'),
+  fabAdd: $id('fabAdd'),
+  menuBtn: $id('menuBtn'),
+  menuDialog: $id('menuDialog'),
+  usualLeaveBtn: $id('usualLeaveBtn'),
+  usualLeaveLabel: $id('usualLeaveLabel'),
+  layout: $id('layout'),
+  rail: $id('rail'),
+  chips: $id('chips'),
+  viewTitle: $id('viewTitle'),
+  viewTitleText: $id('viewTitleText'),
+  listHead: $id('listHead'),
+  listTitle: $id('listTitle'),
+  toggleAllBtn: $id('toggleAllBtn'),
+  projectList: $id('projectList'),
+  emptyState: $id('emptyState'),
+  noMatches: $id('noMatches'),
+  peopleList: $id('peopleList'),
+  tabbar: $id('tabbar'),
+  progressFill: $id('progressFill'),
+  progressText: $id('progressText'),
+  dayNotes: $id('dayNotes'),
+  exportBtn: $id('exportBtn'),
+  importBtn: $id('importBtn'),
+  importFile: $id('importFile'),
+  saveStatus: $id('saveStatus'),
+  addDialog: $id('addDialog'),
+  addForm: $id('addForm'),
+  addText: $id('addText'),
+  addTaskOptions: $id('addTaskOptions'),
+  addProjects: $id('addProjects'),
+  addProjectMore: $id('addProjectMore'),
+  addPin: $id('addPin'),
+  addPinWrap: $id('addPinWrap'),
+  addSubmit: $id('addSubmit'),
+  addError: $id('addError'),
+  toast: $id('toast'),
+  undoToast: $id('undoToast'),
+  undoMessage: $id('undoMessage'),
+  undoBtn: $id('undoBtn'),
+  focusPanel: $id('focusPanel'),
+  focusList: $id('focusList'),
+  focusCount: $id('focusCount'),
+  focusEmpty: $id('focusEmpty'),
+  focusCarry: $id('focusCarry'),
+  focusCarryText: $id('focusCarryText'),
+  planDialog: $id('planDialog'),
+  planList: $id('planList'),
+  planCount: $id('planCount'),
+  planDone: $id('planDone')
 };
 
 function uid() {
@@ -150,10 +175,16 @@ function normalizeState(data) {
     sortDoneTasksToBottom(project);
   });
   data.people = uniqueNames(data.people);
-  data.leaveTime = data.leaveTime || '17:00';
+  const isTime = value => /^\d{2}:\d{2}$/.test(value || '');
+  data.usualLeaveTime = isTime(data.usualLeaveTime) ? data.usualLeaveTime : (isTime(data.leaveTime) ? data.leaveTime : '17:00');
+  data.leaveTime = isTime(data.leaveTime) ? data.leaveTime : data.usualLeaveTime;
+  data.leaveDate = typeof data.leaveDate === 'string' ? data.leaveDate : '';
   data.dayNotes = data.dayNotes || '';
-  data.personFilter = data.personFilter || 'all';
-  data.peopleOpenOnly = typeof data.peopleOpenOnly === 'boolean' ? data.peopleOpenOnly : true;
+  data.view = typeof data.view === 'string' ? data.view : 'all';
+  data.tab = ['projects', 'people', 'notes'].includes(data.tab) ? data.tab : 'projects';
+  data.lastProjectId = data.lastProjectId || '';
+  delete data.personFilter;
+  delete data.peopleOpenOnly;
   return data;
 }
 
@@ -172,7 +203,7 @@ function saveState(show = true) {
     const payload = JSON.stringify(state);
     localStorage.setItem(STORAGE_KEY, payload);
     localStorage.setItem('officeProjectDashboard.v2', payload);
-    updateSaveStatus(`Autosaved locally at ${formatClock(new Date())}`, false);
+    updateSaveStatus(`Saved · ${formatClock(new Date())}`, false);
     if (show) showToast('Saved');
     return true;
   } catch (error) {
@@ -253,9 +284,7 @@ function formatDateTime() {
   const now = new Date();
   // A new day started while the app was open: refresh what's pinned for today.
   if (renderedDay && renderedDay !== todayKey()) render();
-  els.todayDate.textContent = now.toLocaleDateString('en-IN', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-  });
+  els.todayDate.textContent = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
   els.currentTime.textContent = formatClock(now);
   updateRemainingTime();
 }
@@ -266,68 +295,179 @@ function formatTime12(hour24, minute) {
   return `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`;
 }
 
-
-function populateLeaveTimeOptions() {
-  // Native time input is used for easier editing. Step is 5 minutes.
-}
+const timeLabel = value => { const [h, m] = value.split(':').map(Number); return formatTime12(h, m); };
 
 // "2h 15m", or just "40m" when under an hour.
 function formatDuration(hours, minutes) {
   return hours ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
-function updateRemainingTime() {
-  const value = state.leaveTime;
-  if (!value) {
-    els.remainingTime.textContent = '--';
-    els.remainingMessage.textContent = 'Set your leaving time.';
-    return;
-  }
+// ---------- leaving time ----------
+// You set a usual time once. Changing it in the pill only applies to today;
+// every new day starts from the usual time again.
+function leaveTimeToday() {
+  return state.leaveDate === todayKey() ? state.leaveTime : state.usualLeaveTime;
+}
 
+const RING_WINDOW_MIN = 8 * 60;   // the ring shows the last 8 hours before leaving
+const RING_LENGTH = 2 * Math.PI * 7;
+
+function updateRemainingTime() {
+  const value = leaveTimeToday();
   const [h, m] = value.split(':').map(Number);
-  const now = new Date();
   const leaving = new Date();
   leaving.setHours(h, m, 0, 0);
-
-  const diffMs = leaving - now;
+  const diffMs = leaving - new Date();
   const absMinutes = Math.abs(Math.ceil(diffMs / 60000));
   const hours = Math.floor(absMinutes / 60);
   const minutes = absMinutes % 60;
   const leavingText = formatTime12(h, m);
+  const over = diffMs < 0;
+  const stateName = over ? 'over' : absMinutes <= 60 ? 'soon' : 'ok';
 
-  if (diffMs >= 0) {
-    els.remainingTime.textContent = formatDuration(hours, minutes);
-    if (absMinutes <= 60) {
-      els.remainingMessage.textContent = `Wrap-up mode before ${leavingText}.`;
-    } else if (absMinutes <= 180) {
-      els.remainingMessage.textContent = `Focus window until ${leavingText}.`;
-    } else {
-      els.remainingMessage.textContent = `Work window active until ${leavingText}.`;
-    }
+  els.remainingTime.textContent = formatDuration(hours, minutes);
+  els.remainingWord.textContent = over ? 'over' : 'left';
+  els.timePill.dataset.state = stateName;
+  els.timePill.title = `Leaving at ${leavingText}`;
+  const elapsed = over ? 1 : Math.max(0, Math.min(1, 1 - absMinutes / RING_WINDOW_MIN));
+  els.ringFill.style.strokeDasharray = `${RING_LENGTH * elapsed} ${RING_LENGTH}`;
+  els.remainingMessage.textContent = over
+    ? `${formatDuration(hours, minutes)} past ${leavingText}`
+    : `${formatDuration(hours, minutes)} left · until ${leavingText}`;
+}
+
+// The time pill and the menu's "Usual leaving time" share one small dialog.
+let timeDialogMode = 'today';
+const QUICK_TIMES = ['16:30', '17:00', '17:30', '18:00', '18:30'];
+
+function openTimeDialog(mode, anchor) {
+  timeDialogMode = mode;
+  const current = mode === 'usual' ? state.usualLeaveTime : leaveTimeToday();
+  els.timeTitle.textContent = mode === 'usual' ? 'Usual leaving time' : 'Leaving today';
+  els.remainingMessage.hidden = mode === 'usual';
+  els.timeNote.innerHTML = mode === 'usual'
+    ? 'Every new day starts with this time. You can still change a single day from the time at the top.'
+    : `Only for today. Tomorrow starts again at your usual <b>${escapeHtml(timeLabel(state.usualLeaveTime))}</b> (change it in the menu).`;
+  const times = [...new Set([...QUICK_TIMES, current])].sort();
+  els.timeChips.innerHTML = times.map(t => `<button type="button" class="time-chip ${t === current ? 'on' : ''}" data-time="${t}">${timeLabel(t).replace(' PM', '').replace(' AM', ' AM')}</button>`).join('');
+  els.leaveTime.value = current;
+  updateRemainingTime();
+  openSheet(els.timeDialog, anchor);
+}
+
+function setLeaveTime(value) {
+  if (!/^\d{2}:\d{2}$/.test(value)) return;
+  if (timeDialogMode === 'usual') {
+    state.usualLeaveTime = value;
+    showToast(`Usual leaving time: ${timeLabel(value)}`);
   } else {
-    els.remainingTime.textContent = `+${formatDuration(hours, minutes)}`;
-    els.remainingMessage.textContent = `Past planned leaving time of ${leavingText}.`;
+    state.leaveTime = value;
+    state.leaveDate = todayKey();
+    showToast(`Leaving today at ${timeLabel(value)}`);
+  }
+  saveState(false);
+  updateRemainingTime();
+  renderMenuLabels();
+  els.timeDialog.close();
+}
+
+function renderMenuLabels() {
+  els.usualLeaveLabel.textContent = timeLabel(state.usualLeaveTime);
+}
+
+// ---------- sheets: bottom sheet on a phone, small pop-up under its button on a laptop ----------
+const wideScreen = () => window.matchMedia('(min-width: 700px)').matches;
+
+function openSheet(dialog, anchor) {
+  ActionMenu.close();
+  document.querySelectorAll('dialog.sheet[open]').forEach(d => d !== dialog && d.close());
+  dialog.classList.toggle('as-popover', wideScreen() && Boolean(anchor));
+  dialog.style.top = dialog.style.left = dialog.style.right = '';
+  if (!dialog.open) dialog.showModal();
+  if (wideScreen() && anchor) {
+    const a = anchor.getBoundingClientRect();
+    const w = dialog.offsetWidth;
+    const left = Math.min(Math.max(12, a.right - w), window.innerWidth - w - 12);
+    dialog.style.top = `${a.bottom + 8}px`;
+    dialog.style.left = `${left}px`;
   }
 }
 
+// Tapping the dimmed area around a sheet closes it.
+document.querySelectorAll('dialog.sheet').forEach(dialog => {
+  dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+});
+
+// ---------- what the main list shows ----------
+// state.view: 'all' | 'pinned' | 'project:<id>' | 'person:<name>' | 'unassigned'
+// A search (laptop) temporarily overrides it.
+let searchQuery = '';
+let dragEnabled = true;
+const sameName = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
+
+function currentFilter() {
+  if (searchQuery) return { kind: 'search', query: searchQuery.toLowerCase() };
+  const view = state.view || 'all';
+  if (view.startsWith('project:')) return { kind: 'project', id: view.slice(8) };
+  if (view.startsWith('person:')) return { kind: 'person', name: view.slice(7) };
+  if (view === 'pinned' || view === 'unassigned') return { kind: view };
+  return { kind: 'all' };
+}
+
+function taskMatches(task, filter) {
+  if (filter.kind === 'person') return sameName(task.person, filter.name);
+  if (filter.kind === 'unassigned') return !task.person && !task.done;
+  if (filter.kind === 'search') return task.text.toLowerCase().includes(filter.query) || (task.person || '').toLowerCase().includes(filter.query);
+  return true;
+}
+
+function setView(view) {
+  state.view = view;
+  searchQuery = '';
+  if (els.searchInput) els.searchInput.value = '';
+  saveState(false);
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+const openTasks = tasks => tasks.filter(task => !task.done);
+const peopleSummary = tasks => [...new Set(openTasks(tasks).map(t => t.person).filter(Boolean))].join(', ') || 'unassigned';
+
 function render() {
-  els.leaveTime.value = state.leaveTime || '';
-  els.dayNotes.value = state.dayNotes || '';
+  if (document.activeElement !== els.dayNotes) els.dayNotes.value = state.dayNotes || '';
+  // Forget a view whose project or person no longer exists.
+  const view = state.view || 'all';
+  if (view.startsWith('project:') && !getProject(view.slice(8))) state.view = 'all';
+  if (view.startsWith('person:') && !allTasks().some(({ task }) => sameName(task.person, view.slice(7)))) state.view = 'all';
+
+  const filter = currentFilter();
+  const filtered = ['person', 'unassigned', 'search'].includes(filter.kind);
+  dragEnabled = filter.kind === 'all' || filter.kind === 'project';
   els.projectList.innerHTML = '';
-  els.emptyState.style.display = state.projects.length ? 'none' : 'block';
+  let shown = 0;
 
   state.projects.forEach(project => {
     sortDoneTasksToBottom(project);
-    const card = document.createElement('article');
-    card.className = `project-card ${project.collapsed ? 'collapsed' : ''}`;
-    card.dataset.projectId = project.id;
+    if (filter.kind === 'pinned') return;
+    if (filter.kind === 'project' && project.id !== filter.id) return;
+    const tasks = project.tasks.filter(task => taskMatches(task, filter));
+    if (filtered && !tasks.length) return;
+    shown += 1;
 
+    const collapsed = filter.kind === 'all' ? project.collapsed : false;
+    const open = openTasks(project.tasks).length;
+    const card = document.createElement('article');
+    card.className = `project-card ${collapsed ? 'collapsed' : ''}`;
+    card.dataset.projectId = project.id;
     card.innerHTML = `
       <div class="project-header">
-        <span class="drag-handle" title="Drag to reorder projects" aria-hidden="true">☰</span>
-        <input class="project-title" type="text" value="${escapeHtml(project.name)}" aria-label="Project name" />
-        <span class="project-progress" title="Tasks done">${project.tasks.filter(t => t.done).length}/${project.tasks.length}</span>
-        <button class="btn-secondary btn-icon show-task-form" type="button" title="Add task" aria-label="Add task">+</button>
+        <button class="collapse-btn" type="button" aria-expanded="${!collapsed}" aria-label="${collapsed ? 'Expand' : 'Collapse'} ${escapeHtml(project.name)}" ${filter.kind === 'all' ? '' : 'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        <div class="project-title-wrap">
+          <div class="project-title" role="button" tabindex="0" title="Rename">${escapeHtml(project.name)}</div>
+          <div class="project-summary">${open ? `${open} open · ${escapeHtml(peopleSummary(project.tasks))}` : 'All done'}</div>
+        </div>
+        <span class="project-progress" title="Tasks done">${project.tasks.length - open}/${project.tasks.length}</span>
+        <button class="icon-btn round show-task-form" type="button" title="Add task" aria-label="Add task to ${escapeHtml(project.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
         <button class="more-btn project-more" type="button" title="More" aria-label="More project actions" aria-haspopup="menu" aria-expanded="false">⋯</button>
       </div>
       <div class="project-body">
@@ -337,11 +477,10 @@ function render() {
           <button type="button" class="btn-secondary cancel-task">Cancel</button>
         </form>
         <ul class="task-list"></ul>
-      </div>
-    `;
+      </div>`;
 
     const taskList = card.querySelector('.task-list');
-    project.tasks.forEach(task => {
+    tasks.forEach(task => {
       const item = document.createElement('li');
       item.className = `task-item ${task.done ? 'done' : ''} ${isPinnedToday(task) ? 'pinned' : ''}`;
       item.dataset.taskId = task.id;
@@ -361,8 +500,7 @@ function render() {
           </div>
         </div>
         <button class="pin-btn task-pin" type="button" aria-pressed="${isPinnedToday(task)}" title="${isPinnedToday(task) ? 'Unpin' : 'Pin for today'}" aria-label="${isPinnedToday(task) ? 'Unpin from today' : 'Pin for today'}">${PIN_ICON}</button>
-        <button class="more-btn task-more" type="button" title="More" aria-label="More task actions" aria-haspopup="menu" aria-expanded="false">⋯</button>
-      `;
+        <button class="more-btn task-more" type="button" title="More" aria-label="More task actions" aria-haspopup="menu" aria-expanded="false">⋯</button>`;
       taskList.appendChild(item);
     });
 
@@ -370,11 +508,140 @@ function render() {
     els.projectList.appendChild(card);
   });
 
-  renderSummary();
+  els.emptyState.hidden = state.projects.length > 0 || filter.kind === 'pinned';
+  els.noMatches.hidden = !(state.projects.length && filtered && shown === 0);
+  els.noMatches.textContent = filter.kind === 'search' ? `No tasks match "${searchQuery}".` : 'No open tasks here.';
+  els.listHead.hidden = filter.kind === 'pinned' || !state.projects.length;
+  els.toggleAllBtn.hidden = filter.kind !== 'all';
+  els.toggleAllBtn.textContent = state.projects.some(p => !p.collapsed) ? 'Collapse all' : 'Expand all';
+  els.focusPanel.hidden = !(filter.kind === 'all' || filter.kind === 'pinned');
+
+  // Title for a narrowed view, with a way back.
+  const titles = {
+    project: () => getProject(filter.id)?.name,
+    person: () => `${filter.name}'s tasks`,
+    unassigned: () => 'Unassigned tasks',
+    search: () => `Search: "${searchQuery}"`
+  };
+  els.viewTitle.hidden = !titles[filter.kind];
+  if (titles[filter.kind]) els.viewTitleText.textContent = titles[filter.kind]();
+  els.listTitle.textContent = filter.kind === 'all' ? 'Projects' : 'Tasks';
+
   renderFocus();
-  renderPeopleView();
+  renderRail();
+  renderChips();
+  renderPeopleTab();
+  renderProgress();
+  applyTab();
+  renderMenuLabels();
   updateRemainingTime();
   autosizeAllTaskText();
+}
+
+// ---------- overview: laptop list, phone chips, People tab ----------
+function peopleCounts() {
+  const counts = new Map();
+  let unassigned = 0;
+  allTasks().forEach(({ task }) => {
+    if (task.done) return;
+    if (!task.person) { unassigned += 1; return; }
+    const key = [...counts.keys()].find(name => sameName(name, task.person)) || task.person;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  const people = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return { people, unassigned };
+}
+
+function viewItems() {
+  const open = allTasks().filter(({ task }) => !task.done).length;
+  const pinnedOpen = allTasks().filter(({ task }) => isPinnedToday(task) && !task.done).length;
+  return {
+    top: [
+      { view: 'all', label: 'All tasks', count: open },
+      { view: 'pinned', label: 'Pinned today', count: pinnedOpen, pin: true }
+    ],
+    projects: state.projects.map(p => ({ view: `project:${p.id}`, label: p.name, count: openTasks(p.tasks).length })),
+    people: peopleCounts()
+  };
+}
+
+function renderRail() {
+  const { top, projects, people } = viewItems();
+  const item = ({ view, label, count, pin }) => `<button type="button" class="rail-item ${state.view === view && !searchQuery ? 'on' : ''}" data-view="${escapeHtml(view)}">${pin ? `<span class="rail-pin">${PIN_ICON}</span>` : ''}<span class="rail-label">${escapeHtml(label)}</span><span class="rail-count">${count}</span></button>`;
+  els.rail.innerHTML = `
+    ${top.map(item).join('')}
+    <div class="rail-head"><span>Projects</span><button type="button" class="rail-add" id="railAddProject" title="New project" aria-label="New project">+</button></div>
+    ${projects.map(item).join('')}
+    ${people.people.length || people.unassigned ? '<div class="rail-head"><span>People</span></div>' : ''}
+    ${people.people.map(([name, count]) => item({ view: `person:${name}`, label: name, count })).join('')}
+    ${people.unassigned ? item({ view: 'unassigned', label: 'Unassigned', count: people.unassigned }) : ''}`;
+}
+
+function renderChips() {
+  const { top, projects } = viewItems();
+  els.chips.innerHTML = [...top, ...projects].map(({ view, label, count, pin }) =>
+    `<button type="button" class="chip ${state.view === view ? 'on' : ''}" data-view="${escapeHtml(view)}" role="tab" aria-selected="${state.view === view}">${pin ? `<span class="chip-pin">${PIN_ICON}</span>` : ''}${escapeHtml(label === 'All tasks' ? 'All' : label === 'Pinned today' ? 'Pinned' : label)} <i>${count}</i></button>`).join('');
+  const active = els.chips.querySelector('.chip.on');
+  if (active && els.chips.scrollWidth > els.chips.clientWidth) {
+    els.chips.scrollLeft = Math.max(0, active.offsetLeft - 16);
+  }
+}
+
+const expandedPeople = new Set();
+function renderPeopleTab() {
+  const { people, unassigned } = peopleCounts();
+  const rows = [...people.map(([name, count]) => ({ name, count, match: task => sameName(task.person, name) })),
+    ...(unassigned ? [{ name: 'Unassigned', count: unassigned, match: task => !task.person, none: true }] : [])];
+  if (!rows.length) {
+    els.peopleList.innerHTML = '<p class="empty-state">No open tasks with people yet. Tap a task\'s person column to assign someone.</p>';
+    return;
+  }
+  els.peopleList.innerHTML = '';
+  rows.forEach(({ name, count, match, none }) => {
+    const open = expandedPeople.has(name);
+    const block = document.createElement('section');
+    block.className = `person-block ${open ? 'open' : ''}`;
+    const initials = none ? '—' : name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    block.innerHTML = `<button type="button" class="person-head" aria-expanded="${open}"><span class="pav">${escapeHtml(initials)}</span><span class="person-name"><b>${escapeHtml(name)}</b><span class="subtle">${count} open</span></span><span class="person-chev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></span></button><ul class="person-tasks"></ul>`;
+    block.querySelector('.person-head').addEventListener('click', () => {
+      open ? expandedPeople.delete(name) : expandedPeople.add(name);
+      renderPeopleTab();
+    });
+    if (open) {
+      const list = block.querySelector('.person-tasks');
+      allTasks().filter(({ task }) => !task.done && match(task)).forEach(({ project, task }) => list.appendChild(focusRow(project, task, { showPerson: false })));
+    }
+    els.peopleList.appendChild(block);
+  });
+}
+
+function renderProgress() {
+  const tasks = allTasks().map(({ task }) => task);
+  const done = tasks.filter(t => t.done).length;
+  const pinned = tasks.filter(isPinnedToday);
+  const pinnedDone = pinned.filter(t => t.done).length;
+  els.progressFill.style.width = `${tasks.length ? Math.round((done / tasks.length) * 100) : 0}%`;
+  els.progressText.textContent = tasks.length
+    ? `${done} of ${tasks.length} done${pinned.length ? ` · ${pinnedDone} of ${pinned.length} pinned done` : ''}`
+    : 'No tasks yet';
+}
+
+// ---------- phone tabs ----------
+function applyTab() {
+  document.body.dataset.tab = state.tab;
+  els.tabbar.querySelectorAll('button').forEach(button => {
+    const on = button.dataset.tab === state.tab;
+    button.classList.toggle('on', on);
+    button.setAttribute('aria-current', on ? 'page' : 'false');
+  });
+}
+
+function setTab(tab) {
+  if (state.tab === tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  state.tab = tab;
+  saveState(false);
+  applyTab();
+  window.scrollTo(0, 0);
 }
 
 // ---------- pinned for today ----------
@@ -402,6 +669,30 @@ function togglePin(project, task) {
   });
 }
 
+// A compact task row used in the pinned list and the People tab.
+function focusRow(project, task, { showPerson = true } = {}) {
+  const row = document.createElement('li');
+  const pinned = isPinnedToday(task);
+  row.className = `focus-item ${task.done ? 'done' : ''}`;
+  row.innerHTML = `
+    <input type="checkbox" class="task-check" ${task.done ? 'checked' : ''} aria-label="Mark task done" />
+    <button type="button" class="focus-text" title="Show in ${escapeHtml(project.name)}">
+      <span class="focus-task">${escapeHtml(task.text)}</span>
+      <span class="focus-project">${escapeHtml(project.name)}</span>
+    </button>
+    ${showPerson ? `<span class="focus-person">${task.person ? escapeHtml(task.person) : '<span class="muted-dash">—</span>'}</span>` : '<span></span>'}
+    <button type="button" class="pin-btn" aria-pressed="${pinned}" title="${pinned ? 'Unpin' : 'Pin for today'}" aria-label="${pinned ? 'Unpin from today' : 'Pin for today'}">${PIN_ICON}</button>`;
+  row.querySelector('.task-check').addEventListener('change', event => {
+    task.done = event.target.checked;
+    sortDoneTasksToBottom(project);
+    saveState(false);
+    render();
+  });
+  row.querySelector('.pin-btn').addEventListener('click', () => togglePin(project, task));
+  row.querySelector('.focus-text').addEventListener('click', () => revealTask(project, task));
+  return row;
+}
+
 function renderFocus() {
   renderedDay = todayKey();
   const pinned = allTasks().filter(({ task }) => isPinnedToday(task));
@@ -411,40 +702,24 @@ function renderFocus() {
   els.focusCount.textContent = pinned.length ? `${openCount} open` : '';
   els.focusEmpty.hidden = pinned.length > 0 || carried.length > 0;
   els.focusCarry.hidden = carried.length === 0;
-  els.focusCarryText.textContent = carried.length === 1
-    ? '1 task you pinned earlier is still open.'
-    : `${carried.length} tasks you pinned earlier are still open.`;
+  els.focusCarryText.innerHTML = carried.length === 1
+    ? '<b>1 task</b> you pinned earlier is still open.'
+    : `<b>${carried.length} tasks</b> you pinned earlier are still open.`;
   els.focusPanel.classList.toggle('has-items', pinned.length > 0);
 
   els.focusList.innerHTML = '';
   // Open ones first, finished ones after (struck through, until tomorrow).
-  [...pinned.filter(x => !x.task.done), ...pinned.filter(x => x.task.done)].forEach(({ project, task }) => {
-    const row = document.createElement('li');
-    row.className = `focus-item ${task.done ? 'done' : ''}`;
-    row.innerHTML = `
-      <input type="checkbox" class="task-check" ${task.done ? 'checked' : ''} aria-label="Mark task done" />
-      <button type="button" class="focus-text" title="Show in ${escapeHtml(project.name)}">
-        <span class="focus-task">${escapeHtml(task.text)}</span>
-        <span class="focus-project">${escapeHtml(project.name)}</span>
-      </button>
-      <span class="focus-person">${task.person ? escapeHtml(task.person) : '<span class="muted-dash">—</span>'}</span>
-      <button type="button" class="pin-btn" aria-pressed="true" title="Unpin" aria-label="Unpin from today">${PIN_ICON}</button>`;
-    row.querySelector('.task-check').addEventListener('change', event => {
-      task.done = event.target.checked;
-      sortDoneTasksToBottom(project);
-      saveState(false);
-      render();
-    });
-    row.querySelector('.pin-btn').addEventListener('click', () => togglePin(project, task));
-    row.querySelector('.focus-text').addEventListener('click', () => revealTask(project, task));
-    els.focusList.appendChild(row);
-  });
+  [...pinned.filter(x => !x.task.done), ...pinned.filter(x => x.task.done)]
+    .forEach(({ project, task }) => els.focusList.appendChild(focusRow(project, task)));
 }
 
 // Scroll to a task in its project (opening the project if collapsed) and flash it.
 function revealTask(project, task) {
-  if (project.collapsed) {
+  const needsView = !(state.view === 'all' || state.view === `project:${project.id}`) || searchQuery;
+  if (project.collapsed || needsView || state.tab !== 'projects') {
     project.collapsed = false;
+    if (needsView) { state.view = 'all'; searchQuery = ''; els.searchInput.value = ''; }
+    state.tab = 'projects';
     saveState(false);
     render();
   }
@@ -543,9 +818,11 @@ function enableSwipeToPin(item, project, task) {
     const wasSwiping = swiping;
     reset();
     if (wasSwiping) {
-      // Don't let the end of a swipe also open the task for editing.
-      window.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); }, { capture: true, once: true });
-      setTimeout(() => window.dispatchEvent(new Event('swipe-click-clear')), 400);
+      // Don't let the end of a swipe also count as a tap (e.g. opening the task for
+      // editing). Only for a moment: the next real tap must still work.
+      const swallow = e => { e.stopPropagation(); e.preventDefault(); };
+      window.addEventListener('click', swallow, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 350);
     }
     if (ready) togglePin(project, task);
   };
@@ -618,233 +895,70 @@ function resolveProjectDrop(x, y, el) {
   return { list: els.projectList, before: Drag.itemAfterY(els.projectList, '.project-card', y, el) };
 }
 
-function renderSummary() {
-  const totalProjects = state.projects.length;
-  const tasks = state.projects.flatMap(p => p.tasks);
-  const done = tasks.filter(t => t.done).length;
-  const open = tasks.length - done;
-  const rate = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
-
-  els.projectCount.textContent = totalProjects;
-  els.openTaskCount.textContent = open;
-  els.doneTaskCount.textContent = done;
-  els.completionRate.textContent = `${rate}%`;
-}
-
-
-
-function renderPeopleView() {
-  const openOnly = state.peopleOpenOnly !== false;
-  const currentValue = state.personFilter || 'all';
-  const personCounts = new Map();
-  let unassignedCount = 0;
-
-  state.projects.forEach(project => {
-    project.tasks.forEach(task => {
-      if (openOnly && task.done) return;
-      const person = String(task.person || '').trim();
-      if (person) {
-        const existingName = [...personCounts.keys()].find(name => name.toLowerCase() === person.toLowerCase());
-        const key = existingName || person;
-        personCounts.set(key, (personCounts.get(key) || 0) + 1);
-      } else {
-        unassignedCount += 1;
-      }
-    });
-  });
-
-  const peopleOptions = [...personCounts.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([name, count]) => ({ value: `person:${name}`, label: name, rawLabel: name, count }));
-
-  const options = [
-    { value: 'all', label: 'All', rawLabel: 'All', count: null },
-    ...peopleOptions
-  ];
-
-  if (unassignedCount > 0) {
-    options.push({ value: 'unassigned', label: 'Unassigned', rawLabel: 'Unassigned', count: unassignedCount });
-  }
-
-  const validValues = new Set(options.map(option => option.value));
-  if (!validValues.has(currentValue)) state.personFilter = 'all';
-
-  els.personFilter.innerHTML = options
-    .map(option => `<option value="${escapeHtml(option.value)}" ${option.value === state.personFilter ? 'selected' : ''}>${escapeHtml(option.label)}</option>`)
-    .join('');
-  els.personFilter.value = state.personFilter;
-  renderPersonFilterDropdown(options);
-  els.peopleOpenOnly.checked = openOnly;
-
-  if (state.personFilter === 'all') {
-    els.peopleResults.classList.remove('open');
-    els.peopleTaskList.innerHTML = '';
-    els.peopleResultsTitle.textContent = 'Tasks linked to person';
-    els.peopleResultsCount.textContent = '0 tasks';
-    return;
-  }
-
-  const selectedPerson = state.personFilter.startsWith('person:') ? state.personFilter.slice(7) : '';
-  const rows = [];
-
-  state.projects.forEach(project => {
-    project.tasks.forEach(task => {
-      const matchesPerson = selectedPerson
-        ? (task.person || '').toLowerCase() === selectedPerson.toLowerCase()
-        : !(task.person || '').trim();
-      const matchesStatus = !openOnly || !task.done;
-      if (matchesPerson && matchesStatus) rows.push({ project, task });
-    });
-  });
-
-  const label = selectedPerson || 'Unassigned';
-  const countLabel = `${rows.length} ${openOnly ? 'open' : 'total'}`;
-  els.peopleResults.classList.add('open');
-  els.peopleResultsTitle.textContent = `Tasks linked to ${label}`;
-  els.peopleResultsCount.textContent = countLabel;
-  els.peopleTaskList.innerHTML = '';
-
-  if (!rows.length) {
-    const empty = document.createElement('div');
-    empty.className = 'people-empty';
-    empty.textContent = openOnly ? 'No open tasks for this view.' : 'No tasks for this view.';
-    els.peopleTaskList.appendChild(empty);
-    return;
-  }
-
-  rows.forEach(({ project, task }) => {
-    const row = document.createElement('div');
-    row.className = `people-task-row ${task.done ? 'done' : ''}`;
-    row.innerHTML = `
-      <input type="checkbox" class="people-task-check" ${task.done ? 'checked' : ''} aria-label="Mark task done" />
-      <span class="people-task-text" title="${escapeHtml(task.text)}">${escapeHtml(task.text)}</span>
-      <span class="people-project-name" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</span>
-    `;
-    row.querySelector('.people-task-check').addEventListener('change', event => {
-      task.done = event.target.checked;
-      sortDoneTasksToBottom(project);
-      saveState(false);
-      render();
-    });
-    els.peopleTaskList.appendChild(row);
-  });
-}
-
-
-function formatTaskCountText(count) {
-  return `${count} task/s`;
-}
-
-function renderPersonFilterDropdown(options) {
-  if (!els.personSelect || !els.personSelectMenu) return;
-
-  const selected = options.find(option => option.value === state.personFilter) || options[0];
-  els.personSelectLabel.textContent = `View: ${selected.rawLabel || selected.label}`;
-  els.personSelectCount.textContent = '';
-  els.personSelectMenu.innerHTML = '';
-
-  options.forEach((option, index) => {
-    const row = document.createElement('div');
-    row.className = `person-select-option ${option.value === state.personFilter ? 'active' : ''}`;
-    row.dataset.value = option.value;
-    row.dataset.index = String(index);
-    row.setAttribute('role', 'option');
-    row.setAttribute('aria-selected', option.value === state.personFilter ? 'true' : 'false');
-    row.innerHTML = `
-      <span class="person-select-option-name">${escapeHtml(option.rawLabel || option.label)}</span>
-      <span class="person-select-option-count">${option.count ? escapeHtml(formatTaskCountText(option.count)) : ''}</span>
-    `;
-    row.addEventListener('click', () => selectPersonFilterOption(option.value));
-    els.personSelectMenu.appendChild(row);
-  });
-
-  const activeIndex = Math.max(0, options.findIndex(option => option.value === state.personFilter));
-  els.personSelect.dataset.activeIndex = String(activeIndex);
-}
-
-function selectPersonFilterOption(value) {
-  state.personFilter = value;
-  els.personSelect?.classList.remove('open');
-  els.personSelectButton?.setAttribute('aria-expanded', 'false');
-  saveState(false);
-  renderPeopleView();
-}
-
-function openPersonFilterDropdown() {
-  if (!els.personSelect) return;
-  els.personSelect.classList.add('open');
-  els.personSelectButton.setAttribute('aria-expanded', 'true');
-  updatePersonFilterActiveOption();
-}
-
-function closePersonFilterDropdown() {
-  if (!els.personSelect) return;
-  els.personSelect.classList.remove('open');
-  els.personSelectButton.setAttribute('aria-expanded', 'false');
-}
-
-function updatePersonFilterActiveOption() {
-  const options = Array.from(els.personSelectMenu.querySelectorAll('.person-select-option'));
-  let activeIndex = Number(els.personSelect.dataset.activeIndex || 0);
-  if (activeIndex < 0) activeIndex = 0;
-  if (activeIndex >= options.length) activeIndex = options.length - 1;
-  els.personSelect.dataset.activeIndex = String(activeIndex);
-  options.forEach((option, index) => option.classList.toggle('active', index === activeIndex));
-  if (options[activeIndex]) options[activeIndex].scrollIntoView({ block: 'nearest' });
-}
-
 function bindProjectCardEvents(card, projectId) {
   const project = getProject(projectId);
 
-  Drag.attach(card, {
-    itemSelector: '.project-card',
-    handle: '.drag-handle',
-    resolveDrop: resolveProjectDrop,
-    onDrop: ({ index }) => moveProject(projectId, index),
-    onCancel: render
-  });
+  // Drag a project by its header (press and hold on a phone).
+  if (currentFilter().kind === 'all') {
+    Drag.attach(card, {
+      itemSelector: '.project-card',
+      wholeItem: true,
+      area: '.project-header',
+      ignore: 'button, input, textarea',
+      resolveDrop: resolveProjectDrop,
+      onDrop: ({ index }) => moveProject(projectId, index),
+      onCancel: render
+    });
+  }
 
-  const projectTitleInput = card.querySelector('.project-title');
-
-  projectTitleInput.addEventListener('focus', event => {
-    event.target.dataset.original = project.name;
-  });
-
-  projectTitleInput.addEventListener('input', event => {
-    project.name = event.target.value.trimStart();
+  card.querySelector('.collapse-btn').addEventListener('click', () => {
+    project.collapsed = !project.collapsed;
     saveState(false);
-  });
-
-  projectTitleInput.addEventListener('keydown', event => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      if (!event.target.value.trim()) project.name = 'Untitled Project';
-      saveState();
-      render();
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      project.name = event.target.dataset.original || project.name || 'Untitled Project';
-      saveState(false);
-      render();
-    }
-  });
-
-  projectTitleInput.addEventListener('blur', event => {
-    if (!event.target.value.trim()) project.name = 'Untitled Project';
-    saveState();
     render();
   });
 
+  // Tap the name to rename it.
+  const title = card.querySelector('.project-title');
+  const startRename = () => {
+    if (Drag.isDragging()) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'project-title-input';
+    input.value = project.name;
+    input.setAttribute('aria-label', 'Project name');
+    title.replaceWith(input);
+    input.focus();
+    input.select();
+    let finished = false;
+    const finish = save => {
+      if (finished) return;
+      finished = true;
+      if (save) project.name = input.value.trim() || project.name || 'Untitled Project';
+      saveState(false);
+      render();
+    };
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') { event.preventDefault(); finish(true); }
+      if (event.key === 'Escape') { event.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', () => finish(true));
+  };
+  title.addEventListener('click', startRename);
+  title.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); startRename(); }
+  });
 
   card.querySelector('.project-more').addEventListener('click', event => {
     event.stopPropagation();
     closeAllPersonMenus();
     ActionMenu.open(event.currentTarget, [
+      { label: 'Rename', onClick: startRename },
       {
         label: project.collapsed ? 'Expand' : 'Collapse',
+        disabled: currentFilter().kind !== 'all',
         onClick: () => { project.collapsed = !project.collapsed; saveState(false); render(); }
       },
+      { label: 'Show only this project', onClick: () => setView(`project:${projectId}`) },
       {
         label: 'Delete project',
         danger: true,
@@ -861,6 +975,13 @@ function bindProjectCardEvents(card, projectId) {
   const newTaskInput = card.querySelector('.new-task');
 
   card.querySelector('.show-task-form').addEventListener('click', () => {
+    if (project.collapsed) {
+      project.collapsed = false;
+      saveState(false);
+      render();
+      document.querySelector(`[data-project-id="${projectId}"] .show-task-form`)?.click();
+      return;
+    }
     taskForm.classList.add('open');
     newTaskInput.focus();
   });
@@ -880,9 +1001,11 @@ function bindProjectCardEvents(card, projectId) {
 
   taskForm.addEventListener('submit', event => {
     event.preventDefault();
-    const text = newTaskInput.value.trim();
+    const { text, person } = parseTaskText(newTaskInput.value);
     if (!text) return;
-    project.tasks.push({ id: uid(), text, done: false, person: '' });
+    project.tasks.push({ id: uid(), text, done: false, person });
+    if (person) addPersonName(person, false);
+    sortDoneTasksToBottom(project);
     newTaskInput.value = '';
     saveState();
     render();
@@ -905,7 +1028,7 @@ function bindTaskEvents(card, project) {
     const taskId = item.dataset.taskId;
     const task = project.tasks.find(t => t.id === taskId);
 
-    Drag.attach(item, {
+    if (dragEnabled) Drag.attach(item, {
       itemSelector: '.task-item',
       handle: '.task-handle',
       wholeItem: true,
@@ -1255,82 +1378,161 @@ function buildSummaryText() {
 
 
 
-els.personSelectButton.addEventListener('click', event => {
-  event.stopPropagation();
-  const isOpen = els.personSelect.classList.contains('open');
-  closeAllPersonMenus();
-  isOpen ? closePersonFilterDropdown() : openPersonFilterDropdown();
-});
+// ---------- quick add (+) ----------
+// "Send RFQ @Prashanth" -> text "Send RFQ", person "Prashanth" (matches an existing name if there is one).
+function parseTaskText(raw) {
+  let person = '';
+  const text = String(raw || '').replace(/(^|\s)@([^\s@]+)/, (match, space, name) => {
+    person = state.people.find(p => sameName(p, name)) || name;
+    return space;
+  }).replace(/\s+/g, ' ').trim();
+  return { text, person };
+}
 
-els.personSelect.addEventListener('click', event => event.stopPropagation());
+let addMode = 'task';
+let addProjectId = '';
 
-els.personSelectButton.addEventListener('keydown', event => {
-  const options = Array.from(els.personSelectMenu.querySelectorAll('.person-select-option'));
-  let activeIndex = Number(els.personSelect.dataset.activeIndex || 0);
+function addProjectChoices() {
+  // Last used first, then the project you're looking at, then the rest in your order.
+  const viewing = state.view.startsWith('project:') ? state.view.slice(8) : '';
+  const ids = [...new Set([state.lastProjectId, viewing, ...state.projects.map(p => p.id)])].filter(id => getProject(id));
+  return ids.map(getProject);
+}
 
-  if (event.key === 'ArrowDown') {
-    event.preventDefault();
-    openPersonFilterDropdown();
-    activeIndex = Math.min(activeIndex + 1, options.length - 1);
-    els.personSelect.dataset.activeIndex = String(activeIndex);
-    updatePersonFilterActiveOption();
+function setAddMode(mode) {
+  addMode = state.projects.length ? mode : 'project';
+  els.addForm.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === addMode));
+  els.addTaskOptions.hidden = addMode !== 'task';
+  els.addPinWrap.hidden = addMode !== 'task';
+  els.addText.placeholder = addMode === 'task' ? 'What needs doing? (@name assigns)' : 'New project name';
+  els.addSubmit.textContent = addMode === 'task' ? 'Add task' : 'Add project';
+  els.addError.textContent = state.projects.length ? '' : 'Start with a project, then add tasks to it.';
+}
+
+function renderAddProjects() {
+  const choices = addProjectChoices();
+  if (!getProject(addProjectId)) addProjectId = choices[0]?.id || '';
+  const shown = choices.slice(0, 5);
+  if (!shown.some(p => p.id === addProjectId) && getProject(addProjectId)) shown[4] = getProject(addProjectId);
+  els.addProjects.innerHTML = shown.map(p => `<button type="button" class="chip ${p.id === addProjectId ? 'on' : ''}" data-id="${escapeHtml(p.id)}">${escapeHtml(p.name)}</button>`).join('');
+  els.addProjectMore.hidden = choices.length <= 5;
+  els.addProjectMore.innerHTML = '<option value="">More projects…</option>' + choices.slice(5).map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');
+}
+
+function openAdd(mode = 'task', anchor = null) {
+  els.addText.value = '';
+  els.addPin.checked = state.view === 'pinned';
+  addProjectId = '';
+  renderAddProjects();
+  setAddMode(mode);
+  openSheet(els.addDialog, anchor);
+  els.addText.focus();
+}
+
+function submitAdd() {
+  if (addMode === 'project') {
+    const name = els.addText.value.trim();
+    if (!name) return;
+    const project = { id: uid(), name, collapsed: false, tasks: [] };
+    withUndo(`Project "${name}" added`, () => {
+      state.projects.push(project);
+      state.lastProjectId = project.id;
+      saveState(false);
+      render();
+    });
+    els.addDialog.close();
+    document.querySelector(`[data-project-id="${project.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
   }
-
-  if (event.key === 'ArrowUp') {
-    event.preventDefault();
-    openPersonFilterDropdown();
-    activeIndex = Math.max(activeIndex - 1, 0);
-    els.personSelect.dataset.activeIndex = String(activeIndex);
-    updatePersonFilterActiveOption();
+  const project = getProject(addProjectId);
+  const { text, person } = parseTaskText(els.addText.value);
+  if (!project || !text) {
+    els.addError.textContent = text ? 'Pick a project.' : 'Type the task first.';
+    return;
   }
-
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    if (!els.personSelect.classList.contains('open')) {
-      openPersonFilterDropdown();
-      return;
-    }
-    const active = options[Number(els.personSelect.dataset.activeIndex || 0)];
-    if (active) selectPersonFilterOption(active.dataset.value);
-  }
-
-  if (event.key === 'Escape') {
-    event.preventDefault();
-    closePersonFilterDropdown();
-  }
-});
-
-els.personFilter.addEventListener('change', event => {
-  state.personFilter = event.target.value;
-  saveState(false);
-  renderPeopleView();
-});
-
-els.peopleOpenOnly.addEventListener('change', event => {
-  state.peopleOpenOnly = event.target.checked;
-  saveState(false);
-  renderPeopleView();
-});
-
-els.addProjectForm.addEventListener('submit', event => {
-  event.preventDefault();
-  const name = els.projectName.value.trim();
-  if (!name) return;
-  state.projects.push({
-    id: uid(),
-    name,
-    collapsed: false,
-    tasks: []
+  withUndo(`Added to ${project.name}`, () => {
+    const task = { id: uid(), text, done: false, person };
+    if (els.addPin.checked) setPinned(task, true);
+    project.tasks.push(task);
+    if (person) addPersonName(person, false);
+    sortDoneTasksToBottom(project);
+    state.lastProjectId = project.id;
+    saveState(false);
+    render();
   });
-  els.projectName.value = '';
-  saveState();
+  els.addDialog.close();
+}
+
+els.addForm.addEventListener('submit', event => { event.preventDefault(); submitAdd(); });
+els.addForm.querySelectorAll('.seg button').forEach(button => button.addEventListener('click', () => { setAddMode(button.dataset.mode); els.addText.focus(); }));
+els.addProjects.addEventListener('click', event => {
+  const chip = event.target.closest('[data-id]');
+  if (!chip) return;
+  addProjectId = chip.dataset.id;
+  renderAddProjects();
+  els.addText.focus();
+});
+els.addProjectMore.addEventListener('change', () => {
+  if (els.addProjectMore.value) addProjectId = els.addProjectMore.value;
+  renderAddProjects();
+});
+els.addBtn.addEventListener('click', () => openAdd('task', els.addBtn));
+els.fabAdd.addEventListener('click', () => openAdd('task'));
+
+// ---------- time pill and menu ----------
+els.timePill.addEventListener('click', () => openTimeDialog('today', els.timePill));
+els.timeChips.addEventListener('click', event => {
+  const chip = event.target.closest('[data-time]');
+  if (chip) setLeaveTime(chip.dataset.time);
+});
+els.leaveTime.addEventListener('change', event => setLeaveTime(event.target.value));
+
+els.menuBtn.addEventListener('click', () => openSheet(els.menuDialog, els.menuBtn));
+// Choosing anything in the menu closes it.
+els.menuDialog.addEventListener('click', event => {
+  if (event.target.closest('.menu-row, #syncSignInBtn')) els.menuDialog.close();
+});
+els.usualLeaveBtn.addEventListener('click', () => setTimeout(() => openTimeDialog('usual', null), 0));
+$id('offlineSignIn').addEventListener('click', () => $id('syncSignInBtn').click());
+
+// ---------- views, tabs, search ----------
+function onViewClick(event) {
+  const target = event.target.closest('[data-view]');
+  if (target) setView(target.dataset.view);
+}
+els.rail.addEventListener('click', event => {
+  if (event.target.closest('#railAddProject')) { openAdd('project', event.target.closest('#railAddProject')); return; }
+  onViewClick(event);
+});
+els.chips.addEventListener('click', onViewClick);
+$id('viewClear').addEventListener('click', () => setView('all'));
+els.tabbar.addEventListener('click', event => {
+  const button = event.target.closest('[data-tab]');
+  if (button) setTab(button.dataset.tab);
+});
+els.toggleAllBtn.addEventListener('click', () => {
+  const collapse = state.projects.some(p => !p.collapsed);
+  state.projects.forEach(p => { p.collapsed = collapse; });
+  saveState(false);
   render();
 });
 
-els.leaveTime.addEventListener('change', event => {
-  state.leaveTime = event.target.value;
-  saveState();
-  updateRemainingTime();
+let searchTimer = null;
+els.searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { searchQuery = els.searchInput.value.trim(); render(); }, 120);
+});
+els.searchInput.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { els.searchInput.value = ''; searchQuery = ''; render(); els.searchInput.blur(); }
+});
+
+// Keyboard: N = add, / = search (when you're not typing somewhere).
+document.addEventListener('keydown', event => {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.target.closest?.('input, textarea, select, [contenteditable="true"], dialog')) return;
+  if (document.documentElement.classList.contains('locked') || document.documentElement.classList.contains('needs-auth')) return;
+  if (event.key === 'n' || event.key === 'N') { event.preventDefault(); openAdd('task', wideScreen() ? els.addBtn : null); }
+  if (event.key === '/' && wideScreen()) { event.preventDefault(); els.searchInput.focus(); }
 });
 
 els.dayNotes.addEventListener('input', event => {
@@ -1355,6 +1557,7 @@ els.copySummaryBtn.addEventListener('click', async () => {
 });
 
 els.exportBtn.addEventListener('click', () => {
+  els.menuDialog.close();
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -1392,7 +1595,7 @@ els.importFile.addEventListener('change', event => {
   event.target.value = '';
 });
 
-document.addEventListener('click', () => { closeAllPersonMenus(); closePersonFilterDropdown(); });
+document.addEventListener('click', () => closeAllPersonMenus());
 
 els.undoBtn.addEventListener('click', event => { event.stopPropagation(); undo(); });
 
@@ -1434,10 +1637,13 @@ window.dashboardApp = {
     return {
       projects: state.projects,
       people: state.people,
+      usualLeaveTime: state.usualLeaveTime,
       leaveTime: state.leaveTime,
+      leaveDate: state.leaveDate,
       dayNotes: state.dayNotes
     };
   },
+  getLeaveTimeToday: () => leaveTimeToday(),
   applyData(data) {
     undoStack.length = 0;            // undoing now would wipe out the other device's changes
     hideUndoToast();
@@ -1452,8 +1658,6 @@ window.dashboardApp = {
   }
 };
 
-populateLeaveTimeOptions();
-els.leaveTime.value = state.leaveTime || '17:00';
 els.dayNotes.value = state.dayNotes;
 render();
 formatDateTime();
