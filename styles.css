@@ -1715,26 +1715,33 @@ body { background: var(--bg); }
 .task-item.flash { animation: task-flash 1.4s ease; }
 @keyframes task-flash { 0%, 30% { background: #e5e7eb; } 100% { background: #fff; } }
 
-/* Swipe right to pin (phone) */
-.task-item.swiping { position: relative; z-index: 2; box-shadow: -6px 0 14px rgba(17, 24, 39, 0.10); }
+/* Swipe right to pin (phone).
+   The row itself stays put (borders and corners intact); its contents slide
+   right and a dark label is revealed inside the row, growing from the left. */
 .task-list { position: relative; }
-.task-item.swiping::before {
+.task-item.swiping, .task-item.swipe-return { position: relative; overflow: hidden; }
+.task-item.swiping > *, .task-item.swipe-return > * { transform: translateX(var(--swipe, 0px)); }
+.task-item.swipe-return > * { transition: transform 0.18s ease; }
+.task-item.swiping::before, .task-item.swipe-return::before {
   content: attr(data-swipe-label);
   position: absolute;
-  right: 100%;
+  left: 0;
   top: 0;
   bottom: 0;
-  width: 140px;
+  z-index: 1;
+  width: var(--swipe, 0px);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding-right: 14px;
-  border-radius: 10px 0 0 10px;
+  padding-left: 12px;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
   background: #9ca3af;
   color: #fff;
   font-size: 13px;
   font-weight: 800;
 }
+.task-item.swipe-return::before { transition: width 0.18s ease; }
 .task-item.swipe-ready::before { background: #111827; }
 
 /* ---------- projects ---------- */
@@ -1761,7 +1768,12 @@ body { background: var(--bg); }
 }
 
 /* ---------- notes column ---------- */
-.col-notes { position: sticky; top: calc(58px + env(safe-area-inset-top) + 18px); }
+.col-notes {
+  position: sticky;
+  top: calc(58px + env(safe-area-inset-top) + 18px);
+  max-height: calc(100vh - 58px - env(safe-area-inset-top) - 36px);
+  overflow: auto;
+}
 .notes-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
 .notes-card h2 { margin: 0; font-size: 15px; }
 .notes-card .notes-title { margin-top: 18px; }
@@ -1896,8 +1908,8 @@ dialog.sheet[open] { animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
   .appbar-inner { height: 56px; gap: 8px; padding: 0 12px; }
   .ab-brand, .ab-date, .ab-add { display: none; }
   .ab-logo { width: 28px; height: 28px; }
-  .layout { display: block; padding: 12px 12px 120px; }
-  .col-notes { position: static; }
+  .layout { display: block; padding: 12px 12px calc(170px + env(safe-area-inset-bottom)); }
+  .col-notes { position: static; max-height: none; overflow: visible; }
   .notes-card textarea { min-height: 320px; }
   body[data-tab="projects"] .col-people, body[data-tab="projects"] .col-notes,
   body[data-tab="people"] .col-main, body[data-tab="people"] .col-notes,
@@ -2037,10 +2049,37 @@ dialog.sheet[open] { animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
 /* No zooming: no double-tap zoom, and nothing may stick out sideways
    (a swiped row used to, which made the phone zoom out). */
 html { touch-action: manipulation; }
-html, body { overflow-x: hidden; }
+/* "clip", not "hidden": hidden would stop the top bar and side panels from
+   staying in place while scrolling. */
+html, body { overflow-x: clip; }
 .task-list { overflow-x: clip; }
 @media (max-width: 699px) {
   /* iPhone zooms into any text box with text smaller than 16px */
   input, select, textarea, .project-title-input { font-size: 16px !important; }
   #lockPin { font-size: 24px !important; }
 }
+
+/* "Synced 4:05 PM" stays on one line */
+.sync-status { white-space: nowrap; }
+
+/* Person picker: "Add <name>" button (works on keyboards without an Enter key) */
+.person-add {
+  display: block;
+  width: 100%;
+  margin: 2px 0;
+  padding: 9px 10px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  font-weight: 700;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person-add.active, .person-add:hover { background: #f3f4f6; transform: none; }
+
+/* Keyboard: show which option has focus when moving with the arrow keys */
+[data-arrows] :is(button, input):focus-visible { outline: 2px solid #111827; outline-offset: 2px; }
+.action-menu-item:focus-visible { background: #e5e7eb; }

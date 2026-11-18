@@ -414,9 +414,12 @@ function taskMatches(task, filter) {
 }
 
 function setView(view) {
+  // Keep keyboard focus on the list/chips after the screen is redrawn.
+  const group = document.activeElement?.closest?.('[data-arrows]')?.id;
   state.view = view;
   saveState(false);
   render();
+  if (group) $id(group)?.querySelector(`[data-view="${CSS.escape(view)}"]`)?.focus({ preventScroll: true });
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -481,7 +484,7 @@ function render() {
         <div class="person-wrap">
           <button class="person-field" type="button" title="Assign person">${task.person ? escapeHtml(task.person) : ''}</button>
           <div class="person-menu" role="dialog" aria-label="Assign person">
-            <input type="text" class="person-search" placeholder="Search or add person" autocomplete="off" />
+            <form class="person-form" autocomplete="off"><input type="text" class="person-search" placeholder="Search or add person" autocomplete="off" enterkeyhint="done" /></form>
             <div class="person-list"></div>
             <div class="person-menu-actions">
               <button type="button" class="btn-secondary clear-person">Clear</button>
@@ -774,10 +777,14 @@ function enableSwipeToPin(item, project, task) {
   let swiping = false;
   const THRESHOLD = 72;
   const reset = () => {
-    item.style.transition = 'transform 0.18s ease';
-    item.style.transform = '';
-    item.classList.remove('swiping', 'swipe-ready');
-    setTimeout(() => { item.style.transition = ''; }, 200);
+    if (swiping) {
+      // Slide the contents back and shrink the label, then tidy up.
+      item.classList.add('swipe-return');
+      item.classList.remove('swiping', 'swipe-ready');
+      void item.offsetWidth;
+      item.style.setProperty('--swipe', '0px');
+      setTimeout(() => { item.classList.remove('swipe-return'); item.style.removeProperty('--swipe'); }, 200);
+    }
     start = null;
     swiping = false;
   };
@@ -798,7 +805,7 @@ function enableSwipeToPin(item, project, task) {
       } else return;
     }
     const x = Math.max(0, Math.min(dx, 130));
-    item.style.transform = `translateX(${x}px)`;
+    item.style.setProperty('--swipe', `${x}px`);
     item.classList.toggle('swipe-ready', x >= THRESHOLD);
   });
   const finish = event => {
@@ -927,14 +934,14 @@ function bindProjectCardEvents(card, projectId) {
       render();
     };
     input.addEventListener('keydown', event => {
-      if (event.key === 'Enter') { event.preventDefault(); finish(true); }
+      if (isEnterKey(event)) { event.preventDefault(); finish(true); }
       if (event.key === 'Escape') { event.preventDefault(); finish(false); }
     });
     input.addEventListener('blur', () => finish(true));
   };
   title.addEventListener('click', startRename);
   title.addEventListener('keydown', event => {
-    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); startRename(); }
+    if (isEnterKey(event) || event.key === ' ') { event.preventDefault(); startRename(); }
   });
 
   card.querySelector('.project-more').addEventListener('click', event => {
@@ -1056,7 +1063,7 @@ function bindTaskEvents(card, project) {
     };
     taskTextView.addEventListener('click', startEditing);
     taskTextView.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); startEditing(); }
+      if (isEnterKey(event) || event.key === ' ') { event.preventDefault(); startEditing(); }
     });
 
     const personField = item.querySelector('.person-field');
@@ -1085,8 +1092,26 @@ function bindTaskEvents(card, project) {
       renderPersonList(personMenu, task);
     });
 
+    // Pick the highlighted name, or add what was typed as a new person.
+    const choosePerson = () => {
+      const options = Array.from(personMenu.querySelectorAll('.person-option, .person-add'));
+      const activeOption = options[Number(personMenu.dataset.activeIndex || 0)];
+      const name = activeOption?.dataset.name || personInput.value.trim();
+      if (!name) return;
+      task.person = name;
+      addPersonName(name, false);
+      saveState();
+      render();
+    };
+    // Some phone keyboards (e.g. Samsung) show "Send"/"Go" instead of Enter:
+    // that submits the little form around the box.
+    personMenu.querySelector('.person-form').addEventListener('submit', event => {
+      event.preventDefault();
+      choosePerson();
+    });
+
     personInput.addEventListener('keydown', event => {
-      const options = Array.from(personMenu.querySelectorAll('.person-option'));
+      const options = Array.from(personMenu.querySelectorAll('.person-option, .person-add'));
       let activeIndex = Number(personMenu.dataset.activeIndex || 0);
 
       if (event.key === 'ArrowDown') {
@@ -1109,16 +1134,9 @@ function bindTaskEvents(card, project) {
         return;
       }
 
-      if (event.key === 'Enter') {
+      if (isEnterKey(event)) {
         event.preventDefault();
-        const activeOption = options[activeIndex];
-        const highlightedName = activeOption ? activeOption.dataset.name : '';
-        const name = highlightedName || addPersonName(personInput.value);
-        if (!name) return;
-        task.person = name;
-        addPersonName(name, false);
-        saveState();
-        render();
+        choosePerson();
         return;
       }
 
@@ -1206,7 +1224,7 @@ function bindTaskEditor(editor, project, task) {
   });
 
   editor.addEventListener('keydown', event => {
-    if (event.key === 'Enter') {
+    if (isEnterKey(event)) {
       event.preventDefault();
       finish();
     }
@@ -1235,6 +1253,11 @@ function uniqueNames(names) {
     });
 }
 
+// Enter, also from phone keyboards that report it only by its key code.
+function isEnterKey(event) {
+  return event.key === 'Enter' || event.keyCode === 13;
+}
+
 function addPersonName(name, shouldSave = true) {
   const clean = String(name || '').trim();
   if (!clean) return '';
@@ -1252,7 +1275,9 @@ function renderPersonList(menu, task) {
   const query = input.value.trim().toLowerCase();
   const filtered = state.people.filter(name => name.toLowerCase().includes(query));
   let activeIndex = Number(menu.dataset.activeIndex || 0);
-  if (activeIndex >= filtered.length) activeIndex = Math.max(filtered.length - 1, 0);
+  const typedNew = input.value.trim() && !state.people.some(name => name.toLowerCase() === input.value.trim().toLowerCase());
+  const optionCount = filtered.length + (typedNew ? 1 : 0);
+  if (activeIndex >= optionCount) activeIndex = Math.max(optionCount - 1, 0);
   if (activeIndex < 0) activeIndex = 0;
   menu.dataset.activeIndex = String(activeIndex);
   list.innerHTML = '';
@@ -1282,16 +1307,31 @@ function renderPersonList(menu, task) {
     list.appendChild(row);
   });
 
-  if (!filtered.length) {
+  const typed = input.value.trim();
+  if (typed && !state.people.some(name => name.toLowerCase() === typed.toLowerCase())) {
+    const index = filtered.length;
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = `person-add ${index === activeIndex ? 'active' : ''}`;
+    add.dataset.name = typed;
+    add.textContent = `+ Add "${typed}"`;
+    add.addEventListener('click', () => {
+      task.person = typed;
+      addPersonName(typed, false);
+      saveState();
+      render();
+    });
+    list.appendChild(add);
+  } else if (!filtered.length) {
     const empty = document.createElement('div');
     empty.className = 'person-empty';
-    empty.textContent = query ? `Press Enter to add "${input.value.trim()}".` : 'No saved people yet.';
+    empty.textContent = 'No saved people yet.';
     list.appendChild(empty);
   }
 }
 
 function updatePersonActiveOption(menu) {
-  const options = Array.from(menu.querySelectorAll('.person-option'));
+  const options = Array.from(menu.querySelectorAll('.person-option, .person-add'));
   const activeIndex = Number(menu.dataset.activeIndex || 0);
   options.forEach((option, index) => option.classList.toggle('active', index === activeIndex));
   if (options[activeIndex]) {
@@ -1458,7 +1498,7 @@ function attachMentions(input) {
       event.preventDefault();
       active = (active + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
       show();
-    } else if (event.key === 'Enter' || event.key === 'Tab') {
+    } else if (isEnterKey(event) || event.key === 'Tab') {
       event.preventDefault();
       event.stopPropagation();
       choose(active);
@@ -1745,6 +1785,31 @@ saveState(false);
 setInterval(formatDateTime, 1000);
 
 // No zooming: the app always fits the screen.
+// Arrow keys move between the options in a group (chips, time choices, the
+// side list, the menu, Plan today). Enter or Space then picks the option.
+['rail', 'chips', 'tabbar', 'timeChips', 'addProjects', 'planList', 'menuDialog']
+  .forEach(id => $id(id)?.setAttribute('data-arrows', ''));
+document.querySelector('#addDialog .seg')?.setAttribute('data-arrows', '');
+document.addEventListener('keydown', event => {
+  if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  const current = document.activeElement;
+  if (!current || current.matches('input:not([type="checkbox"]):not([type="radio"]), textarea, select, [contenteditable="true"]')) return;
+  const group = current.closest('[data-arrows]');
+  if (!group) return;
+  const items = [...group.querySelectorAll('button:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled)')]
+    .filter(el => el.offsetParent !== null && !el.closest('[hidden]'));
+  const index = items.indexOf(current);
+  if (index < 0) return;
+  const forward = event.key === 'ArrowDown' || event.key === 'ArrowRight';
+  const next = event.key === 'Home' ? 0
+    : event.key === 'End' ? items.length - 1
+    : (index + (forward ? 1 : -1) + items.length) % items.length;
+  event.preventDefault();
+  items[next].focus();
+  items[next].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+});
+
 ['gesturestart', 'gesturechange'].forEach(type => document.addEventListener(type, event => event.preventDefault(), { passive: false }));
 
 // Register the service worker so the app can be installed and opened offline.

@@ -4,6 +4,7 @@
 // items: [{ label, onClick, danger?, indent?, disabled? } | { heading }
 //         | { label, submenu: [...items] }]   (a submenu opens inside the same box)
 // Tapping outside, pressing Escape, or choosing an item closes it.
+// Works with the keyboard too: arrow keys move between items.
 
 const ActionMenu = (() => {
   let menu = null;
@@ -29,6 +30,7 @@ const ActionMenu = (() => {
     menu.setAttribute('role', 'menu');
     menu.addEventListener('click', event => event.stopPropagation());
     menu.addEventListener('pointerdown', event => event.stopPropagation());
+    menu.addEventListener('keydown', onMenuKey);
     document.body.appendChild(menu);
     show(items);
   }
@@ -69,6 +71,28 @@ const ActionMenu = (() => {
 
     place();
     menu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
+  }
+
+  // Keyboard: ↑/↓ move, Home/End jump, → opens a submenu, ← goes back,
+  // Enter/Space choose, Escape closes and returns to the ⋯ button.
+  function onMenuKey(event) {
+    const items = [...menu.querySelectorAll('button:not(:disabled)')];
+    const index = items.indexOf(document.activeElement);
+    const focusAt = i => items[(i + items.length) % items.length]?.focus();
+    if (event.key === 'ArrowDown') focusAt(index + 1);
+    else if (event.key === 'ArrowUp') focusAt(index < 0 ? items.length - 1 : index - 1);
+    else if (event.key === 'Home') focusAt(0);
+    else if (event.key === 'End') focusAt(items.length - 1);
+    else if (event.key === 'ArrowRight' && document.activeElement?.classList.contains('has-submenu')) document.activeElement.click();
+    else if (event.key === 'ArrowLeft' && menu.querySelector('.back')) menu.querySelector('.back').click();
+    else if (event.key === 'Escape' || event.key === 'Tab') {
+      const button = anchor;
+      close();
+      if (event.key === 'Escape') button?.focus();
+      if (event.key === 'Tab') return;
+    } else return;
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   // Below the button, right-aligned, kept on screen; above it if there's no room below.
