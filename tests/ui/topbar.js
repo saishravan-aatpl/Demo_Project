@@ -12,7 +12,7 @@ const hhmm = d => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinute
     const p = await ctx.newPage(); const errors = [];
     p.on('pageerror', e => errors.push(e.message)); p.on('dialog', d => d.accept());
     await p.goto('http://localhost:8123/');
-    const [ch] = await Promise.all([p.waitForEvent('filechooser'), p.click('#settingsBtn').then(() => p.click('#importBtn'))]);
+    const [ch] = await Promise.all([p.waitForEvent('filechooser'), p.click('#menuBtn').then(() => p.click('#settingsBtn')).then(() => p.click('#importBtn'))]);
     await ch.setFiles(backup); await wait(400);
     const st = () => p.evaluate(() => {
       const r = el => el.getBoundingClientRect();

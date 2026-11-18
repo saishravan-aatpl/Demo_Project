@@ -14,7 +14,7 @@ OUT=${OUT:-$(mktemp -d)}
 # check name : data file : needs the pretend cloud
 CHECKS="
 smoke:big
-phone:big
+phone-sizes:big
 pin:big
 pin-remove:-
 redesign:big
@@ -53,7 +53,7 @@ for line in $CHECKS; do
   if [ $# -gt 0 ] && [[ " $* " != *" $name "* ]]; then continue; fi
   case $data in big) file=$BIG ;; small) file=$SMALL ;; *) file=- ;; esac
   [ "$cloud" = cloud ] && start_cloud
-  log=$(node "$ROOT/tests/ui/$name.js" "$file" "$OUT" "$MOCK" 2>&1); code=$?
+  log=$(timeout 240 node "$ROOT/tests/ui/$name.js" "$file" "$OUT" "$MOCK" 2>&1); code=$?
   pass=$(grep -c '^PASS' <<<"$log"); fail=$(grep -c '^FAIL' <<<"$log")
   total_pass=$((total_pass + pass)); total_fail=$((total_fail + fail))
   if [ "$fail" -gt 0 ] || [ "$code" -ne 0 ] || [ "$pass" -eq 0 ]; then

@@ -172,7 +172,7 @@ const visibleProjects = p => p.locator('.project-card .project-title').allTextCo
   }));
   ok(lay.rail && lay.notes && lay.tabs && lay.chips && /left|over/.test(lay.word), 'laptop: left list, notes column, no tabs/chips, two-line pill');
   await q.locator('.project-card').nth(1).locator('.show-task-form').click();
-  await q.locator('.project-card').nth(1).locator('.new-task').pressSequentially('Check @mo', { delay: 15 }); await wait(150);
+  await q.locator('.project-card').nth(1).locator('.new-task').pressSequentially('Check @mi', { delay: 15 }); await wait(150);
   ok((await q.locator('.project-card').nth(1).locator('.mention-option').first().textContent()).includes('Miles'), "a project's own add-task box suggests names too");
   await q.keyboard.press('Escape'); await q.keyboard.press('Escape'); await wait(100);
   await q.locator('.rail-item', { hasText: 'Sam' }).first().click(); await wait(200);

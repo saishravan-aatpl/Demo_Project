@@ -1,13 +1,15 @@
 const { chromium } = require('playwright');
 (async () => {
   const browser = await chromium.launch();
-  const page = await (await browser.newContext()).newPage();
+  const ctx = await browser.newContext({ serviceWorkers: 'block' });
+  await ctx.route('**/config.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.DASHBOARD_CONFIG={}' }));
+  const page = await ctx.newPage();
   await page.goto('http://localhost:8123/');
-  await page.click('#settingsBtn'); await page.click('#pinBtn');
+  await page.click('#menuBtn'); await page.click('#settingsBtn'); await page.click('#pinBtn');
   await page.fill('#pinNew', '1234'); await page.fill('#pinConfirm', '1234');
   await page.click('#pinDialogForm button[type=submit]');
   await page.waitForTimeout(400);
-  await page.click('#settingsBtn'); await page.click('#pinBtn');
+  await page.click('#menuBtn'); await page.click('#settingsBtn'); await page.click('#pinBtn');
   await page.fill('#pinCurrent', '1111');
   await page.click('#pinRemove');
   await page.waitForTimeout(400);
