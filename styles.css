@@ -1449,14 +1449,14 @@ html.needs-auth .auth-gate {
 /* ================================================================== */
 
 /* Things scrolled into view stop below the top bar (also used by drag auto-scroll). */
-:root { --topbar-h: calc(58px + env(safe-area-inset-top)); }
+:root { --topbar-h: calc(58px + env(safe-area-inset-top)); --line: #e5e7eb; }
 html { scroll-padding-top: calc(var(--topbar-h) + 12px); }
 body { background: var(--bg); }
 .app { max-width: none !important; margin: 0; padding: 0 !important; }
 [hidden] { display: none !important; }
 
 /* Line icons used in buttons */
-.icon-btn svg, .ab-add svg, .fab svg, .tabbar svg, .ab-search svg, .collapse-btn svg, .person-chev svg, .icon-btn.round svg {
+.icon-btn svg, .ab-add svg, .fab svg, .tabbar svg, .collapse-btn svg, .person-chev svg, .icon-btn.round svg {
   fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
 
@@ -1500,34 +1500,6 @@ body { background: var(--bg); }
   white-space: nowrap;
 }
 .time-pill:hover { transform: none; background: #e9ebef; }
-.ring { width: 20px; height: 20px; flex: none; }
-.ring circle { fill: none; stroke-width: 2.6; }
-.ring-track { stroke: #d1d5db; }
-.ring-fill { stroke: #111827; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dasharray 0.6s ease; }
-.time-pill[data-state="soon"] { background: #111827; color: #fff; }
-.time-pill[data-state="soon"] .ring-track { stroke: #4b5563; }
-.time-pill[data-state="soon"] .ring-fill { stroke: #fff; }
-.time-pill[data-state="over"] { background: var(--danger-bg); color: var(--danger); box-shadow: inset 0 0 0 1px #f3c4c0; }
-.time-pill[data-state="over"] .ring-track { stroke: #f3c4c0; }
-.time-pill[data-state="over"] .ring-fill { stroke: var(--danger); }
-
-.ab-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 8px 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #fff;
-  color: #9ca3af;
-  margin: 0;
-  font-weight: 500;
-}
-.ab-search svg { width: 16px; height: 16px; flex: none; }
-.ab-search input { border: none !important; box-shadow: none !important; padding: 0 !important; width: 180px; font-size: 14px; background: transparent; }
-.ab-search kbd { font: 11px/1 inherit; border: 1px solid var(--line); border-radius: 5px; padding: 3px 5px; color: #9ca3af; }
-
 .icon-btn {
   width: 36px;
   height: 36px;
@@ -1913,7 +1885,6 @@ dialog.sheet[open] { animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
   .layout { grid-template-columns: minmax(0, 1fr) 280px; }
   .rail { display: none; }
   .chips { display: flex; }
-  .ab-search input { width: 130px; }
 }
 
 @media (max-width: 899px) {
@@ -1923,7 +1894,7 @@ dialog.sheet[open] { animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
 /* ---------- phone ---------- */
 @media (max-width: 699px) {
   .appbar-inner { height: 56px; gap: 8px; padding: 0 12px; }
-  .ab-brand, .ab-date, .ab-search, .ab-add, .pill-word { display: none; }
+  .ab-brand, .ab-date, .ab-add { display: none; }
   .ab-logo { width: 28px; height: 28px; }
   .layout { display: block; padding: 12px 12px 120px; }
   .col-notes { position: static; }
@@ -1995,3 +1966,80 @@ dialog.sheet[open] { animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .plan-note { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
 .plan-person { font-size: 12.5px; font-weight: 700; color: #374151; }
 .plan-dialog .pin-dialog-actions { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+/* ================================================================== */
+/* Round 2: two-line time pill, list dividers, @ suggestions, email,   */
+/* no zooming                                                          */
+/* ================================================================== */
+
+/* Time left: "4h 20m left" / "until 5:00 PM" */
+.time-pill { flex-direction: column; align-items: flex-start; gap: 0; padding: 5px 12px; border-radius: 12px; line-height: 1.1; }
+.pill-main { font-size: 13px; font-weight: 800; white-space: nowrap; }
+.pill-sub { font-size: 10.5px; font-weight: 700; color: var(--muted); white-space: nowrap; margin-top: 1px; }
+.time-pill[data-state="soon"] { background: #111827; color: #fff; }
+.time-pill[data-state="soon"] .pill-sub { color: #cbd5e1; }
+.time-pill[data-state="over"] { background: var(--danger-bg); color: var(--danger); box-shadow: inset 0 0 0 1px #f3c4c0; }
+.time-pill[data-state="over"] .pill-sub { color: var(--danger); }
+
+/* Laptop list: a clear line between All/Pinned, Projects and People */
+.rail-head { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+/* @ suggestions */
+.mention-host, .new-task-wrap { position: relative; display: block; min-width: 0; }
+.new-task-wrap input { width: 100%; }
+.mention-box {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.16);
+  overflow: hidden;
+}
+.mention-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-top: 1px solid #eef0f3;
+  border-radius: 0;
+  background: #fff;
+  color: var(--text);
+  font-size: 14.5px;
+  font-weight: 500;
+  text-align: left;
+}
+.mention-option:first-child { border-top: none; }
+@media (max-width: 699px) {
+  /* On a phone the keyboard is below: open the list above the text box */
+  #addDialog .mention-box { top: auto; bottom: calc(100% + 6px); }
+  #addDialog { overflow: visible; }
+}
+.mention-option:hover { transform: none; background: #f6f7f9; }
+.mention-option.on { background: #f3f4f6; }
+.mention-option .pav { width: 28px; height: 28px; font-size: 11px; }
+.mention-option .pav.new { background: #fff; border: 1.5px dashed #9ca3af; color: #6b7280; font-size: 15px; }
+.mention-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mention-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* Email in the menu: name, then domain */
+.menu-who > div { min-width: 0; }
+.menu-email { display: block; min-width: 0; }
+.em-name { display: block; font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.em-domain { display: block; font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* No zooming: no double-tap zoom, and nothing may stick out sideways
+   (a swiped row used to, which made the phone zoom out). */
+html { touch-action: manipulation; }
+html, body { overflow-x: hidden; }
+.task-list { overflow-x: clip; }
+@media (max-width: 699px) {
+  /* iPhone zooms into any text box with text smaller than 16px */
+  input, select, textarea, .project-title-input { font-size: 16px !important; }
+  #lockPin { font-size: 24px !important; }
+}

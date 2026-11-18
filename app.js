@@ -32,16 +32,15 @@ const els = {
   todayDate: $id('todayDate'),
   currentTime: $id('currentTime'),
   timePill: $id('timePill'),
-  ringFill: $id('ringFill'),
   remainingTime: $id('remainingTime'),
   remainingWord: $id('remainingWord'),
+  pillSub: $id('pillSub'),
   remainingMessage: $id('remainingMessage'),
   timeDialog: $id('timeDialog'),
   timeTitle: $id('timeTitle'),
   timeChips: $id('timeChips'),
   timeNote: $id('timeNote'),
   leaveTime: $id('leaveTime'),
-  searchInput: $id('searchInput'),
   copySummaryBtn: $id('copySummaryBtn'),
   addBtn: $id('addBtn'),
   fabAdd: $id('fabAdd'),
@@ -309,9 +308,6 @@ function leaveTimeToday() {
   return state.leaveDate === todayKey() ? state.leaveTime : state.usualLeaveTime;
 }
 
-const RING_WINDOW_MIN = 8 * 60;   // the ring shows the last 8 hours before leaving
-const RING_LENGTH = 2 * Math.PI * 7;
-
 function updateRemainingTime() {
   const value = leaveTimeToday();
   const [h, m] = value.split(':').map(Number);
@@ -325,12 +321,12 @@ function updateRemainingTime() {
   const over = diffMs < 0;
   const stateName = over ? 'over' : absMinutes <= 60 ? 'soon' : 'ok';
 
+  // Two lines: "4h 20m left" / "until 5:00 PM" (or "20m over" / "since 5:00 PM").
   els.remainingTime.textContent = formatDuration(hours, minutes);
   els.remainingWord.textContent = over ? 'over' : 'left';
+  els.pillSub.textContent = `${over ? 'since' : 'until'} ${leavingText}`;
   els.timePill.dataset.state = stateName;
   els.timePill.title = `Leaving at ${leavingText}`;
-  const elapsed = over ? 1 : Math.max(0, Math.min(1, 1 - absMinutes / RING_WINDOW_MIN));
-  els.ringFill.style.strokeDasharray = `${RING_LENGTH * elapsed} ${RING_LENGTH}`;
   els.remainingMessage.textContent = over
     ? `${formatDuration(hours, minutes)} past ${leavingText}`
     : `${formatDuration(hours, minutes)} left · until ${leavingText}`;
@@ -400,13 +396,10 @@ document.querySelectorAll('dialog.sheet').forEach(dialog => {
 
 // ---------- what the main list shows ----------
 // state.view: 'all' | 'pinned' | 'project:<id>' | 'person:<name>' | 'unassigned'
-// A search (laptop) temporarily overrides it.
-let searchQuery = '';
 let dragEnabled = true;
 const sameName = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
 
 function currentFilter() {
-  if (searchQuery) return { kind: 'search', query: searchQuery.toLowerCase() };
   const view = state.view || 'all';
   if (view.startsWith('project:')) return { kind: 'project', id: view.slice(8) };
   if (view.startsWith('person:')) return { kind: 'person', name: view.slice(7) };
@@ -417,14 +410,11 @@ function currentFilter() {
 function taskMatches(task, filter) {
   if (filter.kind === 'person') return sameName(task.person, filter.name);
   if (filter.kind === 'unassigned') return !task.person && !task.done;
-  if (filter.kind === 'search') return task.text.toLowerCase().includes(filter.query) || (task.person || '').toLowerCase().includes(filter.query);
   return true;
 }
 
 function setView(view) {
   state.view = view;
-  searchQuery = '';
-  if (els.searchInput) els.searchInput.value = '';
   saveState(false);
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -441,7 +431,7 @@ function render() {
   if (view.startsWith('person:') && !allTasks().some(({ task }) => sameName(task.person, view.slice(7)))) state.view = 'all';
 
   const filter = currentFilter();
-  const filtered = ['person', 'unassigned', 'search'].includes(filter.kind);
+  const filtered = ['person', 'unassigned'].includes(filter.kind);
   dragEnabled = filter.kind === 'all' || filter.kind === 'project';
   els.projectList.innerHTML = '';
   let shown = 0;
@@ -472,7 +462,7 @@ function render() {
       </div>
       <div class="project-body">
         <form class="task-form">
-          <input type="text" class="new-task" placeholder="Task name" autocomplete="off" />
+          <span class="new-task-wrap"><input type="text" class="new-task" placeholder="Task name (type @ to assign)" autocomplete="off" /></span>
           <button type="submit">Add</button>
           <button type="button" class="btn-secondary cancel-task">Cancel</button>
         </form>
@@ -510,7 +500,7 @@ function render() {
 
   els.emptyState.hidden = state.projects.length > 0 || filter.kind === 'pinned';
   els.noMatches.hidden = !(state.projects.length && filtered && shown === 0);
-  els.noMatches.textContent = filter.kind === 'search' ? `No tasks match "${searchQuery}".` : 'No open tasks here.';
+  els.noMatches.textContent = 'No open tasks here.';
   els.listHead.hidden = filter.kind === 'pinned' || !state.projects.length;
   els.toggleAllBtn.hidden = filter.kind !== 'all';
   els.toggleAllBtn.textContent = state.projects.some(p => !p.collapsed) ? 'Collapse all' : 'Expand all';
@@ -520,8 +510,7 @@ function render() {
   const titles = {
     project: () => getProject(filter.id)?.name,
     person: () => `${filter.name}'s tasks`,
-    unassigned: () => 'Unassigned tasks',
-    search: () => `Search: "${searchQuery}"`
+    unassigned: () => 'Unassigned tasks'
   };
   els.viewTitle.hidden = !titles[filter.kind];
   if (titles[filter.kind]) els.viewTitleText.textContent = titles[filter.kind]();
@@ -567,7 +556,7 @@ function viewItems() {
 
 function renderRail() {
   const { top, projects, people } = viewItems();
-  const item = ({ view, label, count, pin }) => `<button type="button" class="rail-item ${state.view === view && !searchQuery ? 'on' : ''}" data-view="${escapeHtml(view)}">${pin ? `<span class="rail-pin">${PIN_ICON}</span>` : ''}<span class="rail-label">${escapeHtml(label)}</span><span class="rail-count">${count}</span></button>`;
+  const item = ({ view, label, count, pin }) => `<button type="button" class="rail-item ${state.view === view ? 'on' : ''}" data-view="${escapeHtml(view)}">${pin ? `<span class="rail-pin">${PIN_ICON}</span>` : ''}<span class="rail-label">${escapeHtml(label)}</span><span class="rail-count">${count}</span></button>`;
   els.rail.innerHTML = `
     ${top.map(item).join('')}
     <div class="rail-head"><span>Projects</span><button type="button" class="rail-add" id="railAddProject" title="New project" aria-label="New project">+</button></div>
@@ -715,10 +704,10 @@ function renderFocus() {
 
 // Scroll to a task in its project (opening the project if collapsed) and flash it.
 function revealTask(project, task) {
-  const needsView = !(state.view === 'all' || state.view === `project:${project.id}`) || searchQuery;
+  const needsView = !(state.view === 'all' || state.view === `project:${project.id}`);
   if (project.collapsed || needsView || state.tab !== 'projects') {
     project.collapsed = false;
-    if (needsView) { state.view = 'all'; searchQuery = ''; els.searchInput.value = ''; }
+    if (needsView) state.view = 'all';
     state.tab = 'projects';
     saveState(false);
     render();
@@ -973,6 +962,7 @@ function bindProjectCardEvents(card, projectId) {
 
   const taskForm = card.querySelector('.task-form');
   const newTaskInput = card.querySelector('.new-task');
+  attachMentions(newTaskInput);
 
   card.querySelector('.show-task-form').addEventListener('click', () => {
     if (project.collapsed) {
@@ -1381,12 +1371,111 @@ function buildSummaryText() {
 // ---------- quick add (+) ----------
 // "Send RFQ @Prashanth" -> text "Send RFQ", person "Prashanth" (matches an existing name if there is one).
 function parseTaskText(raw) {
+  let text = String(raw || '');
   let person = '';
-  const text = String(raw || '').replace(/(^|\s)@([^\s@]+)/, (match, space, name) => {
-    person = state.people.find(p => sameName(p, name)) || name;
-    return space;
-  }).replace(/\s+/g, ' ').trim();
-  return { text, person };
+  const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Known people first (longest names first, so "Sai Kumar" wins over "Sai").
+  for (const name of [...state.people].sort((a, b) => b.length - a.length)) {
+    const pattern = new RegExp(`(^|\\s)@${escape(name)}(?=\\s|$)`, 'i');
+    if (pattern.test(text)) { person = name; text = text.replace(pattern, '$1'); break; }
+  }
+  // Otherwise a new name: one word after @.
+  if (!person) {
+    text = text.replace(/(^|\s)@([^\s@]+)/, (match, space, name) => { person = name; return space; });
+  }
+  return { text: text.replace(/\s+/g, ' ').trim(), person };
+}
+
+// ---------- @ suggestions while typing a task ----------
+// Type @ and matching people appear (most open tasks first). Tap one, or use the
+// arrow keys and Enter/Tab. A name nobody has yet can be added as a new person.
+function attachMentions(input) {
+  const host = input.parentElement;
+  host.classList.add('mention-host');
+  const box = document.createElement('div');
+  box.className = 'mention-box';
+  box.setAttribute('role', 'listbox');
+  box.hidden = true;
+  host.appendChild(box);
+  let options = [];
+  let active = 0;
+  let token = null;   // { start, end, query } of the "@que" being typed
+
+  const currentToken = () => {
+    const caret = input.selectionStart ?? input.value.length;
+    const before = input.value.slice(0, caret);
+    const match = /(^|\s)@([^@\n]{0,30})$/.exec(before);
+    if (!match || /\s{2}/.test(match[2])) return null;
+    return { start: caret - match[2].length - 1, end: caret, query: match[2].trim() };
+  };
+
+  const close = () => { box.hidden = true; options = []; token = null; };
+
+  const show = () => {
+    token = currentToken();
+    if (!token) return close();
+    const counts = new Map(peopleCounts().people);
+    const q = token.query.toLowerCase();
+    // Names (or a word in a name) that start with what you typed.
+    const matches = state.people
+      .filter(name => !q || name.toLowerCase().startsWith(q) || name.toLowerCase().split(/\s+/).some(word => word.startsWith(q)))
+      .sort((a, b) => (b.toLowerCase().startsWith(q) - a.toLowerCase().startsWith(q)) || ((counts.get(b) || 0) - (counts.get(a) || 0)) || a.localeCompare(b))
+      .slice(0, 4)
+      .map(name => ({ name, count: counts.get(name) || 0 }));
+    const exact = state.people.some(name => sameName(name, token.query));
+    // Name already typed out in full: nothing to suggest, get out of the way.
+    if (exact && matches.length === 1) return close();
+    // Offer a new person once at least two letters are typed.
+    options = token.query.length >= 2 && !exact ? [...matches, { name: token.query, isNew: true }] : matches;
+    if (!options.length) return close();
+    active = Math.min(active, options.length - 1);
+    box.innerHTML = options.map((o, i) => `
+      <button type="button" class="mention-option ${i === active ? 'on' : ''}" data-index="${i}" role="option" aria-selected="${i === active}">
+        <span class="pav ${o.isNew ? 'new' : ''}">${o.isNew ? '+' : escapeHtml(o.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase())}</span>
+        <span class="mention-name">${o.isNew ? `Add "${escapeHtml(o.name)}" as a new person` : escapeHtml(o.name)}</span>
+        ${o.isNew ? '' : `<span class="mention-count">${o.count ? `${o.count} open` : ''}</span>`}
+      </button>`).join('');
+    box.hidden = false;
+  };
+
+  const choose = index => {
+    const option = options[index];
+    if (!option || !token) return;
+    const name = option.name.trim();
+    const after = input.value.slice(token.end).replace(/^\s*/, ' ');
+    input.value = `${input.value.slice(0, token.start)}@${name}${after}`;
+    const caret = token.start + name.length + 2;
+    input.focus();
+    input.setSelectionRange(caret, caret);
+    close();
+  };
+
+  input.addEventListener('input', () => { active = 0; show(); });
+  input.addEventListener('click', show);
+  input.addEventListener('keydown', event => {
+    if (box.hidden) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      active = (active + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+      show();
+    } else if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault();
+      event.stopPropagation();
+      choose(active);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    }
+  });
+  // pointerdown so the input doesn't lose focus (and the phone keyboard stays up)
+  box.addEventListener('pointerdown', event => {
+    const button = event.target.closest('.mention-option');
+    if (!button) return;
+    event.preventDefault();
+    choose(Number(button.dataset.index));
+  });
+  input.addEventListener('blur', () => setTimeout(close, 150));
 }
 
 let addMode = 'task';
@@ -1463,6 +1552,7 @@ function submitAdd() {
   els.addDialog.close();
 }
 
+attachMentions(els.addText);
 els.addForm.addEventListener('submit', event => { event.preventDefault(); submitAdd(); });
 els.addForm.querySelectorAll('.seg button').forEach(button => button.addEventListener('click', () => { setAddMode(button.dataset.mode); els.addText.focus(); }));
 els.addProjects.addEventListener('click', event => {
@@ -1517,22 +1607,12 @@ els.toggleAllBtn.addEventListener('click', () => {
   render();
 });
 
-let searchTimer = null;
-els.searchInput.addEventListener('input', () => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { searchQuery = els.searchInput.value.trim(); render(); }, 120);
-});
-els.searchInput.addEventListener('keydown', event => {
-  if (event.key === 'Escape') { els.searchInput.value = ''; searchQuery = ''; render(); els.searchInput.blur(); }
-});
-
-// Keyboard: N = add, / = search (when you're not typing somewhere).
+// Keyboard: N = add (when you're not typing somewhere).
 document.addEventListener('keydown', event => {
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   if (event.target.closest?.('input, textarea, select, [contenteditable="true"], dialog')) return;
   if (document.documentElement.classList.contains('locked') || document.documentElement.classList.contains('needs-auth')) return;
   if (event.key === 'n' || event.key === 'N') { event.preventDefault(); openAdd('task', wideScreen() ? els.addBtn : null); }
-  if (event.key === '/' && wideScreen()) { event.preventDefault(); els.searchInput.focus(); }
 });
 
 els.dayNotes.addEventListener('input', event => {
@@ -1663,6 +1743,9 @@ render();
 formatDateTime();
 saveState(false);
 setInterval(formatDateTime, 1000);
+
+// No zooming: the app always fits the screen.
+['gesturestart', 'gesturechange'].forEach(type => document.addEventListener(type, event => event.preventDefault(), { passive: false }));
 
 // Register the service worker so the app can be installed and opened offline.
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

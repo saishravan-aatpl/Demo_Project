@@ -95,7 +95,14 @@
   function renderPanel() {
     $('syncSignedOut').hidden = Boolean(user);
     $('syncSignedIn').hidden = !user;
-    $('syncEmail').textContent = user ? user.email : '';
+    // Name on one line, domain underneath, so a long address never breaks mid-word.
+    const [name, domain] = user ? [user.email.split('@')[0], user.email.slice(user.email.indexOf('@'))] : ['', ''];
+    $('syncEmail').innerHTML = user ? `<span class="em-name"></span><span class="em-domain"></span>` : '';
+    if (user) {
+      $('syncEmail').querySelector('.em-name').textContent = name;
+      $('syncEmail').querySelector('.em-domain').textContent = domain;
+      $('syncEmail').title = user.email;
+    }
     document.querySelectorAll('[data-when="signed-in"]').forEach(el => { el.hidden = !user; });
     const initial = user ? user.email.trim()[0].toUpperCase() : '';
     $('avatarInitial').textContent = initial;

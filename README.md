@@ -34,11 +34,11 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 **Top bar** (always there): the time, a **time-left pill**, copy-summary, **+ Add**, and your
 initial (the **menu**).
 
-- **Time-left pill**: the ring fills as the day goes; dark in your last hour, soft red once
-  you're past leaving time. Tap it to change **today's** leaving time (quick picks).
+- **Time-left pill**: "4h 20m left" with "until 5:00 PM" underneath; dark in your last hour,
+  soft red once you're past leaving time. Tap it to change **today's** leaving time (quick picks).
   Every new day starts from your **usual leaving time** (set in the menu).
-- **+ / Add** (or press **N** on a laptop): add a task or a project. Type `@name` to assign
-  someone, tap the project, optionally *Pin for today*.
+- **+ / Add** (or press **N** on a laptop): add a task or a project. Type `@` and pick a
+  person from the suggestions (or add a new one), tap the project, optionally *Pin for today*.
 - **Menu**: account and sync status, usual leaving time, lock/PIN, export/import backup,
   change password, sign out.
 
@@ -50,7 +50,7 @@ and still open are offered to **Keep** or **Clear**.
 **Overview**: on a laptop, the left list shows all projects and people with open counts
 (click one to see only that); on a phone, the chips row does the same and the **People**
 tab groups open tasks by person. Projects fold to one line ("2 open · Sai, Sachin");
-**Collapse all / Expand all**. Laptop search: press **/**.
+**Collapse all / Expand all**. The app doesn't zoom: it always fits the screen.
 
 **Moving things**: drag a task (phone: press and hold) into any project; drag a project by
 its header; or use *⋯ → Move to project / Move to top*. Tap a task or project name to edit it.

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Workstack</title>
   <meta name="description" content="Workstack: your projects, tasks and follow-ups for the day." />
 
@@ -80,15 +80,10 @@
         <span class="ab-clock" id="currentTime"></span>
         <span class="ab-date" id="todayDate"></span>
         <button type="button" class="time-pill" id="timePill" aria-haspopup="dialog" title="Leaving time">
-          <svg class="ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="ring-track" cx="10" cy="10" r="7"/><circle class="ring-fill" id="ringFill" cx="10" cy="10" r="7"/></svg>
-          <span id="remainingTime">--</span><span class="pill-word" id="remainingWord"></span>
+          <span class="pill-main"><span id="remainingTime">--</span> <span id="remainingWord">left</span></span>
+          <span class="pill-sub" id="pillSub"></span>
         </button>
         <span class="ab-spacer"></span>
-        <label class="ab-search" id="searchBox">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
-          <input type="search" id="searchInput" placeholder="Search tasks" autocomplete="off" aria-label="Search tasks" />
-          <kbd>/</kbd>
-        </label>
         <button type="button" class="icon-btn" id="copySummaryBtn" title="Copy today's summary" aria-label="Copy today's summary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg></button>
         <button type="button" class="ab-add" id="addBtn" title="Add a task or project (N)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button>
         <button type="button" class="avatar" id="menuBtn" aria-haspopup="dialog" aria-label="Menu"><span id="avatarInitial"></span><span class="avatar-dot" id="avatarDot"></span></button>
@@ -185,7 +180,9 @@
         <button type="button" class="on" data-mode="task">Task</button>
         <button type="button" data-mode="project">Project</button>
       </div>
-      <input type="text" id="addText" placeholder="What needs doing? (@name assigns)" enterkeyhint="done" />
+      <div class="mention-host">
+        <input type="text" id="addText" placeholder="What needs doing? Type @ to assign" enterkeyhint="done" autocomplete="off" />
+      </div>
       <div id="addTaskOptions">
         <div class="add-label">Add to</div>
         <div class="add-projects" id="addProjects"></div>
@@ -209,7 +206,7 @@
           <button type="button" id="syncSignInBtn">Sign in</button>
         </div>
         <div id="syncSignedIn" hidden>
-          <div class="menu-who"><span class="avatar big"><span id="menuInitial"></span></span><div><b id="syncEmail"></b><div class="sync-status" id="syncStatus" data-state="syncing">Syncing…</div></div></div>
+          <div class="menu-who"><span class="avatar big"><span id="menuInitial"></span></span><div><span class="menu-email" id="syncEmail"></span><div class="sync-status" id="syncStatus" data-state="syncing">Syncing…</div></div></div>
         </div>
       </section>
       <div class="menu-head">Day</div>
