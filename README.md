@@ -34,8 +34,8 @@ It runs as a website on a laptop and can be installed on iPhone/Android as an ap
 **Top bar** (always there): the time, a **time-left pill**, copy-summary, **+ Add**, and your
 initial (the **menu**).
 
-- **Time-left pill**: "4h 20m left" with "until 5:00 PM" underneath; dark in your last hour,
-  soft red once you're past leaving time. Tap it to change **today's** leaving time (quick picks).
+- **Time-left pill**: "4h 20m left" with "until 5:00 PM" underneath; dark in your last hour
+  and once you're past leaving time. Tap it to change **today's** leaving time (quick picks).
   Every new day starts from your **usual leaving time** (set in the menu).
 - **+ / Add** (or press **N** on a laptop): add a task or a project. Type `@` and pick a
   person from the suggestions (or add a new one), tap the project, optionally *Pin for today*.

@@ -1978,8 +1978,9 @@ dialog.sheet[open] { animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .pill-sub { font-size: 10.5px; font-weight: 700; color: var(--muted); white-space: nowrap; margin-top: 1px; }
 .time-pill[data-state="soon"] { background: #111827; color: #fff; }
 .time-pill[data-state="soon"] .pill-sub { color: #cbd5e1; }
-.time-pill[data-state="over"] { background: var(--danger-bg); color: var(--danger); box-shadow: inset 0 0 0 1px #f3c4c0; }
-.time-pill[data-state="over"] .pill-sub { color: var(--danger); }
+/* Past leaving time: same dark look as the last hour (no red) */
+.time-pill[data-state="over"] { background: #111827; color: #fff; box-shadow: none; }
+.time-pill[data-state="over"] .pill-sub { color: #cbd5e1; }
 
 /* Laptop list: a clear line between All/Pinned, Projects and People */
 .rail-head { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
