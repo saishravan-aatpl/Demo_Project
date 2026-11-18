@@ -4,7 +4,7 @@
 // Strategy: "network first". Always try to fetch the latest version; if there is
 // no internet, fall back to the saved copy. Bump CACHE_VERSION when files change.
 
-const CACHE_VERSION = 'dashboard-v17';
+const CACHE_VERSION = 'dashboard-v18';
 const APP_FILES = [
   './',
   'index.html',
@@ -27,7 +27,8 @@ const APP_FILES = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_VERSION).then(cache => cache.addAll(APP_FILES)));
+  // cache: 'reload' = fetch fresh from the server, not from the browser's own short-term cache.
+  event.waitUntil(caches.open(CACHE_VERSION).then(cache => cache.addAll(APP_FILES.map(url => new Request(url, { cache: 'reload' })))));
   self.skipWaiting();
 });
 
@@ -44,8 +45,11 @@ self.addEventListener('fetch', event => {
   // Only handle our own files; let everything else (e.g. future sync server) go straight to the network.
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
 
+  // cache: 'no-cache' = always ask the server whether the file changed (a quick check;
+  // unchanged files aren't downloaded again). Without it the browser may reuse a copy
+  // for up to 10 minutes, so a fresh update wouldn't show on reload.
   event.respondWith(
-    fetch(request)
+    fetch(request, { cache: 'no-cache' })
       .then(response => {
         const copy = response.clone();
         caches.open(CACHE_VERSION).then(cache => cache.put(request, copy));

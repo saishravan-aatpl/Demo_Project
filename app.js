@@ -1862,6 +1862,6 @@ document.addEventListener('keydown', event => {
 // Register the service worker so the app can be installed and opened offline.
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(error => console.warn('Service worker failed', error));
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(error => console.warn('Service worker failed', error));
   });
 }
