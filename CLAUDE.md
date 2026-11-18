@@ -67,6 +67,13 @@ Key details:
 - Esc must close every pop-up wherever the cursor is inside it. app.js closes
   the top open `<dialog>` itself on Esc (don't rely on the browser), closes an
   open name picker, and leaves the notes box. New pop-ups need the same.
+  The owner uses **Brave**, which sometimes doesn't pass the Esc *press* to the
+  page: app.js replays an Esc *release* as a press when that happens.
+- Pop-ups opened with the mouse focus the box itself, not its first button
+  (a stray Enter must not press anything); ↓ then highlights the first row.
+- Troubleshooting: add `#debug` to the address to show errors and Esc/Enter
+  key events in a box (inline script in `index.html`); bump
+  `WORKSTACK_BUILD` at the top of `app.js` with each release.
 - Samsung keyboards show "Send"/"Go" instead of Enter: put single text boxes in
   a `<form>` and handle `submit`, or offer a tappable button.
 

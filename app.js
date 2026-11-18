@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'officeDailyDashboard.stable.v2';
-window.WORKSTACK_BUILD = 'v19';
+window.WORKSTACK_BUILD = 'v20';
 const LEGACY_STORAGE_KEYS = [
   'officeDailyDashboard.stable.v1',
   'officeProjectDashboard.v2',
@@ -375,12 +375,21 @@ function renderMenuLabels() {
 // ---------- sheets: bottom sheet on a phone, small pop-up under its button on a laptop ----------
 const wideScreen = () => window.matchMedia('(min-width: 700px)').matches;
 
+let lastPointerDown = 0;
+document.addEventListener('pointerdown', () => { lastPointerDown = Date.now(); }, true);
+
 function openSheet(dialog, anchor) {
   ActionMenu.close();
   document.querySelectorAll('dialog.sheet[open]').forEach(d => d !== dialog && d.close());
   dialog.classList.toggle('as-popover', wideScreen() && Boolean(anchor));
   dialog.style.top = dialog.style.left = dialog.style.right = '';
   if (!dialog.open) dialog.showModal();
+  // Opened with the mouse/finger: don't silently select the first button (a stray
+  // Enter would press it). Focus the box itself; ↓ then highlights the first row.
+  if (Date.now() - lastPointerDown < 800) {
+    dialog.tabIndex = -1;
+    dialog.focus({ preventScroll: true });
+  }
   if (wideScreen() && anchor) {
     const a = anchor.getBoundingClientRect();
     const w = dialog.offsetWidth;
@@ -1805,6 +1814,18 @@ saveState(false);
 setInterval(formatDateTime, 1000);
 
 // No zooming: the app always fits the screen.
+// Some browsers (seen in Brave) never pass the Esc key *press* to the page, only
+// its release. If an Esc release arrives without a press, replay it as a press so
+// every Esc behaviour below still works.
+let lastEscDown = 0;
+window.addEventListener('keydown', event => { if (event.isTrusted && (event.key === 'Escape' || event.key === 'Esc')) lastEscDown = Date.now(); }, true);
+window.addEventListener('keyup', event => {
+  if (event.key !== 'Escape' && event.key !== 'Esc') return;
+  if (Date.now() - lastEscDown < 1500) return;      // the press arrived normally
+  const target = document.activeElement || document.body;
+  target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+}, true);
+
 // Esc closes an open name picker wherever the cursor is inside it (typing box,
 // its buttons, or after clicking a blank spot), and returns to the name button.
 document.addEventListener('keydown', event => {
@@ -1850,10 +1871,12 @@ document.addEventListener('keydown', event => {
   const items = [...group.querySelectorAll('button:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled)')]
     .filter(el => el.offsetParent !== null && !el.closest('[hidden]'));
   const index = items.indexOf(current);
-  if (index < 0) return;
+  if (index < 0 && current !== group) return;
+  if (!items.length) return;
   const forward = event.key === 'ArrowDown' || event.key === 'ArrowRight';
   const next = event.key === 'Home' ? 0
     : event.key === 'End' ? items.length - 1
+    : index < 0 ? (forward ? 0 : items.length - 1)        // nothing selected yet
     : (index + (forward ? 1 : -1) + items.length) % items.length;
   event.preventDefault();
   items[next].focus();

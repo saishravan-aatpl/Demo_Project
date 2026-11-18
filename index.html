@@ -86,6 +86,14 @@
           paint();
         }, 60);
       }, true);
+      window.addEventListener('keyup', function (e) {
+        if (e.key !== 'Escape' && e.key !== 'Esc' && e.keyCode !== 27) return;
+        setTimeout(function () {
+          keys.unshift('(released) ' + e.key + ' in ' + describe(e.target) + ' | open now: ' + openDialogs());
+          keys.length = Math.min(keys.length, 8);
+          paint();
+        }, 120);
+      }, true);
       window.addEventListener('hashchange', paint);
       window.addEventListener('load', paint);
       window.WorkstackDebug = { errors: errors, paint: paint };

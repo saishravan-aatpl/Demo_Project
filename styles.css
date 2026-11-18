@@ -2104,3 +2104,6 @@ html, body { overflow-x: clip; }
 .person-remove:hover { background: #e5e7eb; color: #111827; }
 .person-option.active .person-remove { color: #fff; }
 .person-option.active .person-remove:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
+
+/* A pop-up opened with the mouse takes focus itself; no outline for that */
+dialog:focus { outline: none; }
