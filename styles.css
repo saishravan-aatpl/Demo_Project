@@ -2081,8 +2081,7 @@ html, body { overflow-x: clip; }
 .person-add.active, .person-add:hover { background: #f3f4f6; transform: none; }
 
 /* Keyboard: show which option has focus when moving with the arrow keys */
-[data-arrows] :is(button, input):focus-visible { outline: 2px solid #111827; outline-offset: 2px; }
-.action-menu-item:focus-visible { background: #e5e7eb; }
+html.using-keys [data-arrows] :is(button, input):focus-visible { outline: 2px solid #111827; outline-offset: 2px; }
 
 /* Selected option in lists (arrow keys or mouse): clearly visible, one at a time */
 .person-option:hover, .person-add:hover { background: #f3f4f6; }
@@ -2093,9 +2092,9 @@ html, body { overflow-x: clip; }
 .mention-option.on .pav.new { background: transparent; border-color: #9ca3af; color: #fff; }
 .mention-option.on .mention-count { color: #cbd5e1; }
 .action-menu { outline: none; }
-.action-menu-item:focus-visible { background: #111827; color: #fff; }
-.action-menu-item.danger:focus-visible { color: #fecaca; }
-.action-menu-item.has-submenu:focus-visible::after { color: #cbd5e1; }
+html.using-keys .action-menu-item:focus { background: #111827; color: #fff; }
+html.using-keys .action-menu-item.danger:focus { color: #fecaca; }
+html.using-keys .action-menu-item.has-submenu:focus::after { color: #cbd5e1; }
 /* The @ list must not be cut off by the quick-add box */
 #addDialog { overflow: visible; }
 
@@ -2107,3 +2106,8 @@ html, body { overflow-x: clip; }
 
 /* A pop-up opened with the mouse takes focus itself; no outline for that */
 dialog:focus { outline: none; }
+
+/* Focus outlines are for keyboard use only (html.using-keys is set by Tab/arrow
+   keys and cleared by any tap or click), so phones never show a stray box. */
+html:not(.using-keys) :is(button, [role="button"], dialog, .menu-row, .action-menu-item):focus { outline: none; }
+html:not(.using-keys) .action-menu-item:focus:not(:hover) { background: transparent; }

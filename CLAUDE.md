@@ -69,6 +69,8 @@ Key details:
   open name picker, and leaves the notes box. New pop-ups need the same.
   The owner uses **Brave**, which sometimes doesn't pass the Esc *press* to the
   page: app.js replays an Esc *release* as a press when that happens.
+- Focus outlines / dark keyboard highlights only show while `html.using-keys`
+  is set (Tab or arrow keys; cleared by any tap/click). Never show them on phones.
 - Pop-ups opened with the mouse focus the box itself, not its first button
   (a stray Enter must not press anything); ↓ then highlights the first row.
 - Troubleshooting: add `#debug` to the address to show errors and Esc/Enter

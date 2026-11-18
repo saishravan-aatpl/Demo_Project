@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'officeDailyDashboard.stable.v2';
-window.WORKSTACK_BUILD = 'v20';
+window.WORKSTACK_BUILD = 'v21';
 const LEGACY_STORAGE_KEYS = [
   'officeDailyDashboard.stable.v1',
   'officeProjectDashboard.v2',
@@ -374,6 +374,12 @@ function renderMenuLabels() {
 
 // ---------- sheets: bottom sheet on a phone, small pop-up under its button on a laptop ----------
 const wideScreen = () => window.matchMedia('(min-width: 700px)').matches;
+
+// Keyboard or mouse/finger? Outlines and highlights only show while using the keyboard.
+document.addEventListener('keydown', event => {
+  if (['Tab', 'ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) document.documentElement.classList.add('using-keys');
+}, true);
+document.addEventListener('pointerdown', () => document.documentElement.classList.remove('using-keys'), true);
 
 let lastPointerDown = 0;
 document.addEventListener('pointerdown', () => { lastPointerDown = Date.now(); }, true);
